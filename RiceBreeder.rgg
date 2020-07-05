@@ -1,0 +1,923 @@
+/** RiceBreeder.rgg, renamed from 28.01.2010 (Lifeng Xu)
+    rice breeder completed, 26.03.2011 (Lifeng Xu)
+    ID added to each organ(finalized at 19.01.2010), 06.04.2010 (Lifeng Xu)
+	Modified for the new project, since 12.07.2012
+	*/
+import Sky.*;
+import Vegetative.*;
+import Plant.*;
+
+final Sky sky = Sky.INSTANCE;
+Main main = Main.INSTANCE;
+
+//breed time
+int year = ConstPara.YEAR;
+int month = ConstPara.MONTH;
+int day = ConstPara.DAY;
+int hour = ConstPara.HOUR;
+
+int breedTime = 1;
+//boolean earFlag = true;
+
+LightModel radiation = new LightModel(ConstPara.RAY_COUNT,ConstPara.RAY_DEPTH);  //temp use	//lfxu100419
+
+const DatasetRef envChart = new DatasetRef("Environment"); //environment
+const DatasetRef sunPositionChart = new DatasetRef("Sun Position");
+const DatasetRef lightRadiationChart = new DatasetRef("Direct and Diffused Light"); //radiation
+const DatasetRef growthRateChart = new DatasetRef("Growth Rate"); // growth rate 
+const DatasetRef dryMassChart = new DatasetRef("Dry Mass"); // total dry mass
+const DatasetRef leafAreaChart = new DatasetRef("Leaf Area");
+const DatasetRef absorbedRadiationChart = new DatasetRef("Absorbed Radiation");
+const DatasetRef producerAndConsumerChart = new DatasetRef("Producer and Consumer"); //Producer and Consumer
+const DatasetRef leafAngleChart = new DatasetRef("Leaf Angle");
+const DatasetRef spacingChart = new DatasetRef("Spacing");
+const DatasetRef fitnessChart = new DatasetRef("Fitness");
+const DatasetRef fitRateChart = new DatasetRef("Fitness divide Area");
+
+final Vegetative veg = Vegetative.INSTANCE;
+ParticleSwarm ps = ParticleSwarm.getInstance();;
+protected double aos = 0;
+
+//-----------------------------FSPM生长过程-------------------------------------
+/**
+ * 植株详细生长过程
+ */
+protected void detailedGrow()
+{
+
+	if(breedTime <= ConstPara.TOTAL_GROWTH_LEN) {
+		radiation.compute(); // 光分布到场景中
+		updateIndividual(); //植株状态变化和形态变化
+		logGrowth(); //记录单株生长过程
+		//logGrowth2(); //记录群体植株生长过程
+		updateDate(); //更新日期
+		updateSky(); //更新天空，包括太阳位置和各光源辐射度的变化
+		//updateCharts(); //配合initCharts使用--------需要在Main中的detailedGrow()中打开riceBreeder.initCharts();
+	} 
+	
+	if(breedTime == ConstPara.TOTAL_GROWTH_LEN){
+		ps.soilRadiation[0][1] = 1;
+	}
+	
+	/*if(breedTime == ConstPara.TOTAL_GROWTH_LEN-1){
+		ps.totalRadiation[ps.currentGeneration][ps.count] = sum((* ind:Individual *).grainDM);//群体产量
+		println("total:"+ps.totalRadiation[ps.currentGeneration][ps.count]);
+		if(ps.currentGeneration == 0&&ps.count==0){
+			ps.lessSoilRadiation = ps.soilRadiation[ps.currentGeneration][0];
+			for(int i=0; i<ps.particle; i++){
+				ps.soilRadiation[0][i] = aos;
+				ps.unitSoilRadiation[0][i] = aos/ps.getArea(0);
+				//double temp= 0.12/0.84*soyRadiation/ps.getSoyArea(0) + 0.72/0.84*maiRadiation/ps.getMaiArea(0);
+				ps.lllessRate[0][i] = ps.totalRadiation[0][i]/ps.getArea();
+				println("area:"+ps.getArea());
+				println("cg:"+ps.currentGeneration+" count:"+ps.count+" fitness:"+ps.lllessRate[0][i]);
+			}                   
+		}else{
+			ps.soilRadiation[ps.currentGeneration][ps.count] = aos;
+			ps.unitSoilRadiation[ps.currentGeneration][ps.count] = aos/ps.getArea(0);
+			//double temp= 0.12/0.84*soyRadiation/ps.getSoyArea(0) + 0.72/0.84*maiRadiation/ps.getMaiArea(0);
+			ps.lllessRate[ps.currentGeneration][ps.count] = ps.totalRadiation[ps.currentGeneration][ps.count]/ps.getArea(0);
+			println("cg:"+ps.currentGeneration+" count:"+ps.count+" fitness:"+ps.lllessRate[ps.currentGeneration][ps.count]);
+		}
+	}*/
+}
+
+/** 
+ * 植株生长过程，内部计算
+ */
+protected void hiddenGrow() {
+	for (apply (ConstPara.TOTAL_GROWTH_LEN)) //植株生长
+	{
+		detailedGrow(); 
+	}
+	//ps.totalRadiation[ps.currentGeneration][ps.count] = sum((* ind:Individual *).grainDM);//群体产量
+}
+
+protected void updatePSO(int cg, int count, double area) {
+	hiddenGrow();
+	//PSO(cg, count, area);
+	//println("test:"+getYield());//一直为0
+	//{double temp = sum((* ind:Individual *).grainDM;}
+	//ps.setFitness(cg, count, temp, area);
+}
+
+protected double getSum() {
+	double sum = 0;
+	for(int i=1; i<ConstPara.norows-1; i++) {
+		for(int j=1; j<ConstPara.nocols-1; j++) {
+			sum += sum((* ind:Individual, (ind[ID]==(i*ConstPara.norows+j+1)) *).grainDM);
+		}
+	}
+	return sum((* ind:Individual *).grainDM);
+}
+
+protected double getAos() {
+	return aos;
+}
+
+protected void PSO(int cg, int count, double area) {
+	for(int i = 0; i<5&&cg==0; i++) {
+		ps.totalRadiation[cg][i] = 1;//sum((* ind:Individual *).grainDM);//群体产量
+	}
+	//for(int i = 0; i<5; i++){
+		ps.totalRadiation[cg][count] = 1;//sum((* ind:Individual *).grainDM);//群体产量
+		ps.setFitness(cg, count, ps.totalRadiation[cg][count], area);
+		//println("cg:"+cg+" count:"+count+" total:"+ps.totalRadiation[cg][count]+" area:"+area);
+	//}
+	//println("total:"+ps.totalRadiation[cg][count]);//一直为0
+	if(cg == 0&&count==0){
+		ps.lessSoilRadiation = ps.soilRadiation[cg][0];
+		for(int i=0; i<ps.particle; i++){
+			ps.soilRadiation[0][i] = aos;
+			ps.unitSoilRadiation[0][i] = aos/area;
+			ps.lllessRate[0][i] = ps.totalRadiation[0][i]/area;
+			println("area:"+area);
+			println("fitness:"+ps.lllessRate[0][i]);
+			println("rate:"+ps.lllessRate[0][i]/area);
+		}                   
+	}else{
+		ps.soilRadiation[cg][count] = aos;
+		ps.unitSoilRadiation[cg][count] = aos/area;
+		ps.lllessRate[cg][count] = ps.totalRadiation[cg][count]/area;
+		print("area:"+area);
+		println(" fitness:"+ps.lllessRate[cg][count]);
+	}
+	//ps.setFitness(cg, count, ps.totalRadiation[cg][count], area);
+	if(cg==0){
+		main.fit[cg][0] = ps.lllessRate[cg][0];
+		main.fit[cg][1] = (ps.lllessRate[cg][0]/area);
+		//updateFitnessChart(ps.lllessRate[cg][0], ps.lllessRate[cg][0]/area);
+	}else if(count==4) {
+		ps.radiationForAll[cg][1] = ps.lllessRate[cg][0];
+		main.fit[cg][0] = ps.lllessRate[cg][0];
+		ps.radiationForAll[cg][2] = ps.lllessRate[cg][0]/area;
+		println("++++++++++++++++++++++++riceBreeder"+ps.radiationForAll);
+		main.fit[cg][1] = ps.lllessRate[cg][0]/area;
+		for(int i=1; i<5; i++){
+			if(ps.radiationForAll[cg][2]<(ps.lllessRate[cg][i]/area)){
+				ps.radiationForAll[cg][2]=(ps.lllessRate[cg][i]/area);
+				ps.radiationForAll[cg][1]=ps.lllessRate[cg][i];
+				//ps.fitness[cg][0] = ps.lllessRate[cg][i];
+				//ps.fitness[cg][1] = (ps.lllessRate[cg][i]/area);
+				main.fit[cg][0] = ps.lllessRate[cg][i];
+				main.fit[cg][1] = (ps.lllessRate[cg][i]/area);
+				//println("main:"+ps.fitness[cg][0]+"-"+ps.fitness[cg][1]);
+			}
+		}
+		//updateFitnessChart(ps.radiationForAll[cg][1], ps.radiationForAll[cg][2]);
+		//println("+++++++++++mid:"+main.fit[cg-1][0]+" cg:"+(cg-1));
+	}
+	//println("============1"+main.fit[cg][0]);
+	if(cg==0||count==4) {
+		updateFitnessChart(ps.fitness[cg][0], ps.fitness[cg][1]);
+	}
+	//println("============start:"+main.fit[cg][0]+" cg:"+cg);
+	//main.copy(main.fit);
+	main.copy();
+	//println("============mid:"+main.fit[cg][0]+" cg:"+cg);
+	//println("============mid2:"+main.duplicate[cg][0]+" cg:"+cg);
+	if(cg==ps.maxTime&&count==4) {
+		ps.write(main.fit);
+		println("============start:"+main.duplicate);
+	}
+}
+
+//植株状态变化和形态变化
+protected void updateIndividual()
+{
+	updateIndPre();  // 植株形态变化前的植株生长过程
+	veg.morphology(); //植株形态变化
+	updateIndSuf(); //植株形态变化后的植株生长过程
+}
+
+//记录植株生长过程
+protected void logGrowth()
+[
+	ind:Individual 
+	::>
+	{
+		String s1 = "I" + ind[ID] + " D" + breedTime + 
+			" LA=" + ReportUtil.format2(ind.leafArea) + 
+			" LR=" + ReportUtil.format2(ind.leafRadiation) + 
+			" LLP=" + ReportUtil.format2(ind.leafLocPool) +
+			" C0=" + ReportUtil.format2(ind.CpoolStart) +
+			" C-=" + ReportUtil.format2(ind.consumer) + 
+			" --> " +
+			" DM( T=" + ReportUtil.format2(ind.totalDryMass) + 
+					",L=" + ReportUtil.format2(ind.leafDM) + 
+					",I=" + ReportUtil.format2(ind.internodeDM) + 
+					",G=" + ReportUtil.format2(ind.grainDM) + " )" +
+					" GN=" + ReportUtil.format(ind.grainNumber) + 
+					" GFN=" + ReportUtil.format(ind.grainFinalNumber)
+			;
+		//println(s1);
+		//println("number of organ(leaf, intn, grain): " + count((* al:Leaf, (al[ID]==ind[ID]) *)));
+		ReportUtil.append(ConstPara.growthLog, s1); //记录生长信息
+	}
+]
+
+//记录群体植株生长过程（均值）
+protected void logGrowth2()
+{
+	float totalNum = ConstPara.norows*ConstPara.nocols;
+	float leafAreaAvg = sum((* a:Individual *).leafArea)/(totalNum);
+	float leafRadiationAvg = sum((* a:Individual *).leafRadiation)/(totalNum);
+	float leafLocPoolAvg = sum((* a:Individual *).leafLocPool)/(totalNum);
+	float CpoolStartAvg = sum((* a:Individual *).CpoolStart)/(totalNum);
+	float consumerAvg = sum((* a:Individual *).consumer)/(totalNum);
+	float totalDryMassAvg = sum((* a:Individual *).totalDryMass)/(totalNum);
+	float leafDMAvg = sum((* a:Individual *).leafDM)/(totalNum);
+	float internodeDMAvg = sum((* a:Individual *).internodeDM)/(totalNum);
+	float grainDMAvg = sum((* a:Individual *).grainDM)/(totalNum);
+	float grainNumberAvg = sum((* a:Individual *).grainNumber)/(totalNum);
+	float grainFinalNumberAvg = sum((* a:Individual *).grainFinalNumber)/(totalNum);
+	
+	String s = "D" + breedTime + 
+			" LA=" + ReportUtil.format2(leafAreaAvg) + 
+			" LR=" + ReportUtil.format2(leafRadiationAvg) + 
+			" LLP=" + ReportUtil.format2(leafLocPoolAvg) +
+			" C0=" + ReportUtil.format2(CpoolStartAvg) +
+			" C-=" + ReportUtil.format2(consumerAvg) + 
+			" --> " +
+			" DM( T=" + ReportUtil.format2(totalDryMassAvg) + 
+					",L=" + ReportUtil.format2(leafDMAvg) + 
+					",I=" + ReportUtil.format2(internodeDMAvg) + 
+					",G=" + ReportUtil.format2(grainDMAvg) + " )" +
+					" GN=" + ReportUtil.format(grainNumberAvg) + 
+					" GFN=" + ReportUtil.format(grainFinalNumberAvg)
+			;
+	println(s);
+	ReportUtil.append(ConstPara.growthLog, s); //记录生长信息
+}
+
+//更新日期
+protected void updateDate()
+{
+	breedTime += 1; //5*par.DELTA_T;  //DELTA_T = 0.2 //lfxu100420 //wy131125
+	int[] result = TimeFunction.updateTimeByDay(year, month, day);
+	year = result[0];
+	month = result[1];
+	day = result[2];
+}
+
+//更新天空，包括太阳位置和各光源辐射度的变化
+protected void updateSky()[
+{
+	sky.update(year, month, day, hour);
+}
+	p:Parallelogram ::> 
+	{
+		aos += radiation.getAbsorbedPower(p).integrate();
+	}
+]
+
+
+//------------------------------优化过程----------------------------------------
+/**
+ * 设置第whichGeneration代第whichIndPerGeneration个植株的适应度值（重点）
+ */
+protected void setFitness(GA ga, int whichGeneration, int whichIndPerGeneration)
+{
+	setPlantPara(ga, whichGeneration, whichIndPerGeneration); //获取生长数据
+	hiddenGrow(); //植株生长，获得产量
+	setYield(ga, whichGeneration, whichIndPerGeneration); //将产量作为适应度值
+}
+
+//从ga中获得植株生长的数据，并传递给植株
+protected void setPlantPara(GA ga, int whichGeneration, int whichIndPerGeneration)
+{
+	//解码ga的基因，更新植株生长数据（重点）
+	//变化株型的核心：目前植株的生长还不是使用OptPara.plantType[]
+	for(int i=0; i<ConstGaPara.geneNumber; i++) 
+	{
+		ConstPara.plantType[i] = Double.parseDouble( //Sting转double
+				ReportUtil.format( //调整精度
+						CodeUtil.decode( //解码
+								ga.getPopulation()[whichIndPerGeneration-1].getGene()[i], 
+								ConstGaPara.lbound[i], ConstGaPara.ubound[i])
+				)
+			);
+	}
+	//fbl、fba
+	for(int i=0; i<ConstPara.fbl.length; i++) {
+		//OptPara.fbl[i] = OptPara.plantType[i];
+		ConstPara.fba[i] = ConstPara.plantType[i];
+	}
+	//plantHeight、ftn、trla
+	ConstPara.plantHeight = ConstPara.plantType[ConstPara.fba.length]*0.01;
+	ConstPara.ftn = (int)ConstPara.plantType[ConstPara.fba.length+1];
+	ConstPara.trla = (int)ConstPara.plantType[ConstPara.fbl.length+2];
+	print("ph:" + ReportUtil.format2(ConstPara.plantHeight) + " ftn:" + ConstPara.ftn + " trla:" + ConstPara.trla);
+}
+
+protected void updateSpacingChart(double spacingInner, double spacingoOuter)
+{
+	spacingChart
+		<<spacingInner//<<spacingoOuter
+		;
+}
+
+protected void updateFitnessChart(double fitness, double fitRate)
+{
+	println("chart: fitness:"+fitness+" rate:"+fitRate);
+	fitnessChart
+		<<fitness
+		;
+	fitRateChart
+		<<fitRate
+		;
+}
+
+protected void updateSpacingChart()
+{
+	spacingChart
+		<<ps.spacingProcess[ps.currentGeneration][0]//<<ps.spacingProcess[ps.currentGeneration][1]
+		;
+}
+
+////将产量作为适应度值
+protected void setYield(GA ga, int whichGeneration, int whichIndPerGeneration)
+{
+	float totalYield = sum((* ind:Individual *).grainDM)/(ConstPara.norows*ConstPara.nocols);//群体产量
+	//println("test:"+totalYield);//一直为0
+	ga.getPopulation()[whichIndPerGeneration-1].setFitness(totalYield);
+}
+
+protected double getYield()
+{
+	double totalYield = sum((* ind:Individual *).grainDM)/(ConstPara.norows*ConstPara.nocols);//群体产量
+	return totalYield;
+}
+
+protected void displayTheBest(GA ga, int whichGeneration, int whichIndPerGeneration)
+{
+	setPlantPara(ga, whichGeneration, whichIndPerGeneration); //获取生长数据
+	hiddenGrow(); //植株生长，获得产量
+}
+
+/** 
+ * 更新individual
+ * @author weiyang 20131230
+ */
+protected void updateIndPre()
+[
+	ind:Individual 
+	::>
+	{
+		ind.growDays++;
+		if(ind.earFlag)
+		{
+			ind.earGrowDays++;
+		}
+		//println("--------indGrowDays:" + ind.growDays);
+		ind.leafArea(); //计算叶面积
+		ind.leafRadiation(); //计算光吸收量
+		ind.leafProducer(); //光合作用
+		ind.updateCpool(); //更新碳池
+		ind.maintenanceRespiration();//维持呼吸消耗碳池同化物
+		ind.updateSinkDemand(); //计算各器官库强度
+		
+		//抽穗时计算籽粒最大数目
+		if (ConstPara.TEMP_SUM[breedTime] >= ConstPara.EAR_TEMP_SUM)
+		//if ((ConstPara.TEMP_SUM[RiceBreeder.INSTANCE.breedTime] >= 1600) && (RiceBreeder.INSTANCE.earFlag))
+		{
+			//println("------------------------");
+			if(!(ind.earFlag))
+			{
+				float tmpCpool = ind.CpoolStart;//(9/10)*ind.CpoolStart; //ind.CpoolStart;
+				ind.grainFinalNumber = (long)((tmpCpool)/ConstPara.FLOWER);
+				ind.earGrowDays = 1;
+				ind.earFlag = true;
+			}
+		}
+		
+		ind.updateAgr(); //计算各器官生长速率
+	}
+]
+
+protected void updateIndSuf()
+[
+	ind:Individual 
+	::>
+	{
+		ind.rootConsumer(); //根消耗碳池同化物
+		ind.morphologyConsumer(); //形态变化消耗碳池同化物
+		ind.updateGrainNumber(); //更新籽粒数目
+		ind.updateDryMass(); //更新各器官干物质重量
+	}
+]
+
+
+
+
+protected void initSpacing() {
+	spacingChart.clear()
+			.setColumnKey(0, "the inner spacing")//.setColumnKey(1, "the outer spacing")
+			;
+	fitnessChart.clear()
+			.setColumnKey(0, "the fitness")
+			;
+	fitRateChart.clear()
+			.setColumnKey(0, "the fitness divide area")
+			;
+			
+	chart(spacingChart, XY_PLOT);
+	chart(fitnessChart, XY_PLOT);
+	chart(fitRateChart, XY_PLOT);
+}
+
+//wy131206
+protected void initCharts() 
+{
+	/*
+	envChart.clear()
+		.setColumnKey(0,"temperature").setColumnKey(1,"humidity").setColumnKey(2,"cloud")
+		.setColumnKey(3,"wind speed")
+		;
+	sunPositionChart.clear()
+		.setColumnKey(0,"alititude").setColumnKey(1,"azimuth")
+		;
+	lightRadiationChart.clear()
+		.setColumnKey(0,"direct light").setColumnKey(1,"diffused light")
+		;
+	growthRateChart.clear()
+		.setColumnKey(0,"internodes").setColumnKey(1,"leaves").setColumnKey(2,"grains")
+		;*/
+	/*
+	dryMassChart.clear()
+		.setColumnKey(0,"internodes").setColumnKey(1,"leaves").setColumnKey(2,"grains")
+		.setColumnKey(3,"total").setColumnKey(4,"CAP")
+		;
+	*/
+	/*
+	leafAreaChart.clear()
+		.setColumnKey(0, "leaf area")
+		;
+	absorbedRadiationChart.clear()
+		.setColumnKey(0, "absorbed radiation")
+		;	
+	producerAndConsumerChart.clear()
+		.setColumnKey(0, "photosynthesis").setColumnKey(1, "CAPstart").setColumnKey(2, "consumption")
+		.setColumnKey(3, "CAPfinal")
+		;
+	
+	leafAngleChart.clear()
+		.setColumnKey(0, "lf1").setColumnKey(1, "lf2").setColumnKey(2, "lf3").setColumnKey(3, "lf4")
+		.setColumnKey(4, "lf5").setColumnKey(5, "lf6").setColumnKey(6, "lf7").setColumnKey(7, "lf8")
+		.setColumnKey(8, "lf9").setColumnKey(9, "lf10").setColumnKey(10, "lf11").setColumnKey(11, "lf12")
+		.setColumnKey(12, "lf13").setColumnKey(13, "lf14")
+		;*/
+	
+	/*
+	chart(envChart, XY_PLOT);
+	chart(sunPositionChart, XY_PLOT);
+	chart(lightRadiationChart, XY_PLOT);
+	chart(growthRateChart, XY_PLOT);*/
+	chart(dryMassChart, XY_PLOT);
+	/*
+	chart(leafAreaChart, XY_PLOT);
+	chart(absorbedRadiationChart, XY_PLOT);
+	chart(producerAndConsumerChart, XY_PLOT);
+	chart(leafAngleChart, XY_PLOT);*/
+}
+
+protected void updateCharts() 
+{
+	/*
+	updateEnvChart();
+	updateSunPositionChart();
+	updateLightRadiationChart();
+	updateGrowthRateChart();*/
+	updateDryMassChart();
+	/*updateLeafAreaChart();
+	updateAbsorbedRadiationChart();
+	updateProdercerAndConsumerChart();
+	updateLeafAngle();*/
+}
+
+/*
+protected void updateEnvChart()
+{
+	envChart
+		<<ConstPara.TA[breedTime]
+		<<ConstPara.REL_HUMIDITY[breedTime]
+		<<ConstPara.CLOUD[breedTime]
+		<<ConstPara.WSPEED[breedTime]
+		;
+}
+
+protected void updateSunPositionChart()
+{
+	sunPositionChart 
+		<< (* SunPoint *).altitude
+		<< 	(* SunPoint *).azimuth	
+		;
+}
+
+protected void updateLightRadiationChart()
+{
+	lightRadiationChart
+		<< (* SunPoint *).power
+		<< (* Tiankong *).power
+		;
+}
+
+protected void updateGrowthRateChart()
+{
+	growthRateChart 
+	    <<sum((* Internode *).agr) <<sum((* Leaf *).agr) <<sum((* Grain *).agr)
+		//<<sum((* Internode *).agr2) <<sum((* Leaf *).agr2) <<sum((* Grain *).agr2)
+		;
+}*/
+
+protected void updateDryMassChart()
+{
+	dryMassChart
+		<<sum((* Individual *).internodeDM)
+		<<sum((* Individual *).leafDM)
+		<<sum((* Individual *).grainDM)
+		<<sum((* Individual *).totalDryMass)
+		<<sum((* Individual *).Cpool)
+		;
+}
+
+/*
+protected void updateLeafAreaChart()
+{
+	leafAreaChart 
+		<<sum((* Leaf *).area);
+}
+
+protected void updateAbsorbedRadiationChart()
+{
+	absorbedRadiationChart
+		<<sum((* Leaf *).radiation)
+		;
+}
+
+protected void updateProdercerAndConsumerChart()
+{
+	producerAndConsumerChart
+		<<sum((* Leaf *).locPool) <<sum((* Individual *).CpoolStart)
+		<<sum((* Individual *).consumer) <<sum((* Individual *).Cpool)
+		;
+}
+
+protected void updateLeafAngle() 
+{
+	float lf1 = Math.max(sum((* i: Leaf, (i[ID] == 1 && i[order] == 1 && i[rank] == 1)*).angle), 0);
+	float lf2 = Math.max(sum((* j: Leaf, (j[ID] == 1 && j[order] == 1 && j[rank] == 2)*).angle), 0);
+	float lf3 = Math.max(sum((* k: Leaf, (k[ID] == 1 && k[order] == 1 && k[rank] == 3)*).angle), 0);
+	float lf4 = Math.max(sum((* l: Leaf, (l[ID] == 1 && l[order] == 1 && l[rank] == 4)*).angle), 0);
+	float lf5 = Math.max(sum((* m: Leaf, (m[ID] == 1 && m[order] == 1 && m[rank] == 5)*).angle), 0);
+	float lf6 = Math.max(sum((* n: Leaf, (n[ID] == 1 && n[order] == 1 && n[rank] == 6)*).angle), 0);
+	float lf7 = Math.max(sum((* o: Leaf, (o[ID] == 1 && o[order] == 1 && o[rank] == 7)*).angle), 0);
+	float lf8 = Math.max(sum((* p: Leaf, (p[ID] == 1 && p[order] == 1 && p[rank] == 8)*).angle), 0);
+	float lf9 = Math.max(sum((* q: Leaf, (q[ID] == 1 && q[order] == 1 && q[rank] == 9)*).angle), 0);
+	float lf10 = Math.max(sum((* r: Leaf, (r[ID] == 1 && r[order] == 1 && r[rank] == 10)*).angle), 0);
+	float lf11 = Math.max(sum((* s: Leaf, (s[ID] == 1 && s[order] == 1 && s[rank] == 11)*).angle), 0);
+	float lf12 = Math.max(sum((* t: Leaf, (t[ID] == 1 && t[order] == 1 && t[rank] == 12)*).angle), 0);
+	float lf13 = Math.max(sum((* u: Leaf, (u[ID] == 1 && u[order] == 1 && u[rank] == 13)*).angle), 0);
+	float lf14 = Math.max(sum((* v: Leaf, (v[ID] == 1 && v[order] == 1 && v[rank] == 14)*).angle), 0);
+	leafAngleChart 
+		<<lf1 <<lf2 <<lf3 <<lf4 <<lf5 <<lf6 <<lf7 <<lf8 <<lf9 <<lf10 <<lf11 <<lf12 <<lf13 <<lf14
+		;
+	
+}*/
+
+
+/* wy131119 close
+protected void initCharts()  //lfxu101212
+{
+	par.pool.clear().setColumnKey(0,"1").setColumnKey(1,"2").setColumnKey(2,"3").setColumnKey(3,"4");
+	par.intnGrowth.clear().setColumnKey(0,"1").setColumnKey(1,"2").setColumnKey(2,"3").setColumnKey(3,"4");
+	//par.stemLength.clear().setColumnKey(0,"stem");  //lfxu101103
+	par.stemLength.clear().setColumnKey(0,"1").setColumnKey(1,"2").setColumnKey(2,"3").setColumnKey(3,"4");
+	chart(par.pool, de.grogra.pf.ui.ChartPanel.XY_PLOT);
+	chart(par.intnGrowth, de.grogra.pf.ui.ChartPanel.XY_PLOT);
+	chart(par.stemLength, de.grogra.pf.ui.ChartPanel.XY_PLOT);
+	//lfxu101212
+	par.intnD1.clear().setColumnKey(0,"1").setColumnKey(1,"2").setColumnKey(2,"3").setColumnKey(3,"4").setColumnKey(4,"5").setColumnKey(5,"6").setColumnKey(6,"7").setColumnKey(7,"8").setColumnKey(8,"9").setColumnKey(9,"10");
+	par.intnD2.clear().setColumnKey(0,"1").setColumnKey(1,"2").setColumnKey(2,"3").setColumnKey(3,"4").setColumnKey(4,"5").setColumnKey(5,"6").setColumnKey(6,"7").setColumnKey(7,"8").setColumnKey(8,"9").setColumnKey(9,"10");
+	par.intnD3.clear().setColumnKey(0,"1").setColumnKey(1,"2").setColumnKey(2,"3").setColumnKey(3,"4").setColumnKey(4,"5").setColumnKey(5,"6").setColumnKey(6,"7").setColumnKey(7,"8").setColumnKey(8,"9").setColumnKey(9,"10");
+	par.intnD4.clear().setColumnKey(0,"1").setColumnKey(1,"2").setColumnKey(2,"3").setColumnKey(3,"4").setColumnKey(4,"5").setColumnKey(5,"6").setColumnKey(6,"7").setColumnKey(7,"8").setColumnKey(8,"9").setColumnKey(9,"10");
+	chart(par.intnD1, de.grogra.pf.ui.ChartPanel.XY_PLOT);
+	chart(par.intnD2, de.grogra.pf.ui.ChartPanel.XY_PLOT);
+	chart(par.intnD3, de.grogra.pf.ui.ChartPanel.XY_PLOT);
+	chart(par.intnD4, de.grogra.pf.ui.ChartPanel.XY_PLOT);
+	par.intnComp.clear().setColumnKey(0,"1").setColumnKey(1,"2").setColumnKey(2,"3").setColumnKey(3,"4"); //lfxu101213
+	chart(par.intnComp, de.grogra.pf.ui.ChartPanel.XY_PLOT);
+	par.TNBDyn.clear().setColumnKey(0,"1").setColumnKey(1,"2").setColumnKey(2,"3").setColumnKey(3,"4"); //lfxu101216
+	chart(par.TNBDyn, de.grogra.pf.ui.ChartPanel.XY_PLOT);
+}
+
+protected void printPhenotype()  //lfxu100703
+{
+	PrintWriter phenoPt = new PrintWriter(new FileWriter("C:\\Users\\LifengXu\\Documents\\GroIMP_Data\\phenotype_01.txt"));//lfxu110327
+	//PrintWriter outpf = new PrintWriter(new FileWriter("BreedAutoGenerationNo_"+generation+".txt"));
+	float[] stemL = new float[par.newNumber];
+	float[] yieldDM = new float[par.newNumber];
+	int indivNo = Parameter.INSTANCE.whichIndividuals;  //lfxu101026
+	for(int id=1; id<=par.newNumber; id++)
+	{
+		float intn1 = sum((* a: Internode, (a[ID]==id && a[order] == 1 && a[rank] == 1) *)[length]);
+		float intn2 = sum((* b: Internode, (b[ID]==id && b[order] == 1 && b[rank] == 2) *)[length]);
+		float intn3 = sum((* c: Internode, (c[ID]==id && c[order] == 1 && c[rank] == 3) *)[length]);
+		float intn4 = sum((* d: Internode, (d[ID]==id && d[order] == 1 && d[rank] == 4) *)[length]);
+		float intn5 = sum((* e: Internode, (e[ID]==id && e[order] == 1 && e[rank] == 5) *)[length]);
+		float intn6 = sum((* f: Internode, (f[ID]==id && f[order] == 1 && f[rank] == 6) *)[length]);
+		float intn7 = sum((* g: Internode, (g[ID]==id && g[order] == 1 && g[rank] == 7) *)[length]);
+		float intn8 = sum((* h: Internode, (h[ID]==id && h[order] == 1 && h[rank] == 8) *)[length]);
+		float intn9 = sum((* i: Internode, (i[ID]==id && i[order] == 1 && i[rank] == 9) *)[length]);
+		float intn10 = sum((* j: Internode, (j[ID]==id && j[order] == 1 && j[rank] == 10) *)[length]);
+		stemL[id-1] = intn1+intn2+intn3+intn4+intn5+intn6+intn7+intn8+intn9+intn10;
+		
+		float ydIndi = sum((* gr:Grain, (gr[ID]==id) *).getDryMass()); //already in g
+		//long tillerNB = count((* intn:Internode, (intn[ID] ==id && intn[rank] == 1) *)) - 1;  //lfxu101105
+		long tillerNB = count((* tl:Tiller, (tl[ID] ==id && tl[grow]) *)); //gbs101105  //lfxu101220
+		yieldDM[id-1] = ydIndi;
+		//println("Plant-"+(id+indivNo)+"-yield-"+yieldDM[id-1]+"-stem length-"+stemL[id-1]+"-TNB-"+tillerNB);  //lfxu101026
+		phenoPt.println("Plant-"+(id+indivNo)+"-stem length-"+stemL[id-1]);  //lfxu110326
+	}
+	phenoPt.close();
+}
+
+protected void updateLeafLengthChart()  //lfxu100629
+{
+	float lf1 = Math.max(sum((* i: Leaf, (i[ID] == 1 && i[order] == 1 && i[rank] == 1)*).length), 0);
+	float lf2 = Math.max(sum((* j: Leaf, (j[ID] == 1 && j[order] == 1 && j[rank] == 2)*).length), 0);
+	float lf3 = Math.max(sum((* k: Leaf, (k[ID] == 1 && k[order] == 1 && k[rank] == 3)*).length), 0);
+	float lf4 = Math.max(sum((* l: Leaf, (l[ID] == 1 && l[order] == 1 && l[rank] == 4)*).length), 0);
+	float lf5 = Math.max(sum((* m: Leaf, (m[ID] == 1 && m[order] == 1 && m[rank] == 5)*).length), 0);
+	float lf6 = Math.max(sum((* n: Leaf, (n[ID] == 1 && n[order] == 1 && n[rank] == 6)*).length), 0);
+	float lf7 = Math.max(sum((* o: Leaf, (o[ID] == 1 && o[order] == 1 && o[rank] == 7)*).length), 0);
+	float lf8 = Math.max(sum((* p: Leaf, (p[ID] == 1 && p[order] == 1 && p[rank] == 8)*).length), 0);
+	float lf9 = Math.max(sum((* q: Leaf, (q[ID] == 1 && q[order] == 1 && q[rank] == 9)*).length), 0);
+	float lf10 = Math.max(sum((* r: Leaf, (r[ID] == 1 && r[order] == 1 && r[rank] == 10)*).length), 0);
+	float lf11 = Math.max(sum((* s: Leaf, (s[ID] == 1 && s[order] == 1 && s[rank] == 11)*).length), 0);
+	float lf12 = Math.max(sum((* t: Leaf, (t[ID] == 1 && t[order] == 1 && t[rank] == 12)*).length), 0);
+	float lf13 = Math.max(sum((* u: Leaf, (u[ID] == 1 && u[order] == 1 && u[rank] == 13)*).length), 0);
+	float lf14 = Math.max(sum((* v: Leaf, (v[ID] == 1 && v[order] == 1 && v[rank] == 14)*).length), 0);
+
+	par.leafLength.addRow().set(0,lf1).set(1,lf2).set(2,lf3).set(3,lf4).set(4,lf5).set(5,lf6).set(6,lf7)
+	.set(7,lf8).set(8,lf9).set(9,lf10).set(10,lf11).set(11,lf12).set(12,lf13).set(13,lf14);
+}
+
+protected void updateIntnLengthChart()  //lfxu101212
+{
+	//float intn[][] = new float[par.noIndividuals][10];
+	for(int idtemp=0; idtemp<par.noIndividuals; idtemp++) {
+		int id = idtemp+1;
+		float intn1 = sum((* a: Internode, (a[ID]==id && a[order] == 1 && a[rank] == 1) *)[length]);
+		float intn2 = sum((* b: Internode, (b[ID]==id && b[order] == 1 && b[rank] == 2) *)[length]);
+		float intn3 = sum((* c: Internode, (c[ID]==id && c[order] == 1 && c[rank] == 3) *)[length]);
+		float intn4 = sum((* d: Internode, (d[ID]==id && d[order] == 1 && d[rank] == 4) *)[length]);
+		float intn5 = sum((* e: Internode, (e[ID]==id && e[order] == 1 && e[rank] == 5) *)[length]);
+		float intn6 = sum((* f: Internode, (f[ID]==id && f[order] == 1 && f[rank] == 6) *)[length]);
+		float intn7 = sum((* g: Internode, (g[ID]==id && g[order] == 1 && g[rank] == 7) *)[length]);
+		float intn8 = sum((* h: Internode, (h[ID]==id && h[order] == 1 && h[rank] == 8) *)[length]);
+		float intn9 = sum((* i: Internode, (i[ID]==id && i[order] == 1 && i[rank] == 9) *)[length]);
+		float intn10 = sum((* j: Internode, (j[ID]==id && j[order] == 1 && j[rank] == 10) *)[length]);
+		if(idtemp==0) {
+			par.intnD1.addRow().set(0,intn1).set(1,intn2).set(2,intn3).set(3,intn4).set(4,intn5).set(5,intn6).set(6,intn7).set(7,intn8).set(8,intn9).set(9,intn10);
+		} else if(idtemp==1) {
+			par.intnD2.addRow().set(0,intn1).set(1,intn2).set(2,intn3).set(3,intn4).set(4,intn5).set(5,intn6).set(6,intn7).set(7,intn8).set(8,intn9).set(9,intn10);
+		}  //lfxu110124 
+		else if(idtemp==2) { 
+			par.intnD3.addRow().set(0,intn1).set(1,intn2).set(2,intn3).set(3,intn4).set(4,intn5).set(5,intn6).set(6,intn7).set(7,intn8).set(8,intn9).set(9,intn10);
+		} else  if(idtemp==3) {
+			par.intnD4.addRow().set(0,intn1).set(1,intn2).set(2,intn3).set(3,intn4).set(4,intn5).set(5,intn6).set(6,intn7).set(7,intn8).set(8,intn9).set(9,intn10);
+		}
+	}
+	float intnC1 = sum((* j: Internode, (j[ID]==1 && j[order] == 1 && j[rank] == 10) *)[length]); //lfxu101213
+	float intnC2 = sum((* j: Internode, (j[ID]==2 && j[order] == 1 && j[rank] == 10) *)[length]);
+	float intnC3 = sum((* j: Internode, (j[ID]==3 && j[order] == 1 && j[rank] == 10) *)[length]);
+	float intnC4 = sum((* j: Internode, (j[ID]==4 && j[order] == 1 && j[rank] == 10) *)[length]);
+	par.intnComp.addRow().set(0,intnC1).set(1,intnC2).set(2,intnC3).set(3,intnC4);
+}
+
+protected void updatePSChart()  //lfxu100629
+{
+	float Assi = 0;
+	Assi = sum((* lf:Leaf, (lf[ID] == 1) *).locPool());
+	par.PSChart.setSeriesInRows(false);
+	par.PSChart.addRow().set(0, Assi);
+}
+
+protected void updateLeafpgrChart()
+{
+	Leaf l = first((* lf:Leaf, (lf[rank]==7 && lf[order]==1)*)); 
+	if(l!=null) {
+		par.pgrChart.addRow().set(0,l.getPgr()*1000).set(1,l[agr]*1000);
+	}
+}
+
+protected void updateIntnGrowthChart()  //lfxu101212
+{
+	int intn_rank = 6;  //lfxu101213, 6, 3, 4, 5, 7, 8, 9, 10
+	int intn_order = 1;
+	Internode intnd1 = first((* intn:Internode, (intn[ID]==1 && intn[order]==intn_order && intn[rank]==intn_rank) *));
+	Internode intnd2 = first((* intn:Internode, (intn[ID]==2 && intn[order]==intn_order && intn[rank]==intn_rank) *));
+	//lfxu110124
+	Internode intnd3 = first((* intn:Internode, (intn[ID]==3 && intn[order]==intn_order && intn[rank]==intn_rank) *));
+	Internode intnd4 = first((* intn:Internode, (intn[ID]==4 && intn[order]==intn_order && intn[rank]==intn_rank) *));
+	if(intnd1!=null && intnd2!=null && intnd3!=null && intnd4!=null)
+	{  //lfxu110124
+		par.intnGrowth.addRow().set(0,intnd1[pgr2]).set(1,intnd2[pgr2]).set(2,intnd3[pgr2]).set(3,intnd4[pgr2]);
+	}
+}
+
+protected void updateStemLengthChart()
+{
+	float[] stemL = new float[Parameter.INSTANCE.noIndividuals];
+	float lenPlus = 0;//Math.min(0.01*time, 0.3);  //lfxu110104 //lfxu110105
+	
+	for(int id=1; id<=Parameter.INSTANCE.noIndividuals; id++)  //ID: 1, 2, 3, 4  //lfxu101103, 5*2
+	{
+		float intn1 = sum((* a: Internode, (a[ID]==id && a[order] == 1 && a[rank] == 1) *)[length]);
+		float intn2 = sum((* b: Internode, (b[ID]==id && b[order] == 1 && b[rank] == 2) *)[length]);
+		float intn3 = sum((* c: Internode, (c[ID]==id && c[order] == 1 && c[rank] == 3) *)[length]);
+		float intn4 = sum((* d: Internode, (d[ID]==id && d[order] == 1 && d[rank] == 4) *)[length]);
+		float intn5 = sum((* e: Internode, (e[ID]==id && e[order] == 1 && e[rank] == 5) *)[length]);
+		float intn6 = sum((* f: Internode, (f[ID]==id && f[order] == 1 && f[rank] == 6) *)[length]);
+		float intn7 = sum((* g: Internode, (g[ID]==id && g[order] == 1 && g[rank] == 7) *)[length]);
+		float intn8 = sum((* h: Internode, (h[ID]==id && h[order] == 1 && h[rank] == 8) *)[length]);
+		float intn9 = sum((* i: Internode, (i[ID]==id && i[order] == 1 && i[rank] == 9) *)[length]);
+		float intn10 = sum((* j: Internode, (j[ID]==id && j[order] == 1 && j[rank] == 10) *)[length]);
+		stemL[id-1] = intn1+intn2+intn3+intn4+intn5+intn6+intn7+intn8+intn9+intn10 + lenPlus;  //lfxu110104
+	}
+
+	par.stemLength.addRow().set(0,stemL[0]).set(1,stemL[1]);//.set(2,stemL[2]).set(3,stemL[3]); //lfxu110120
+}
+
+protected void updateTNBDynChart()  //lfxu101216
+{
+	long tnb1 = count((* tl:Tiller, (tl[ID]==1 && tl[grow] ) *));
+	long tnb2 = count((* tl:Tiller, (tl[ID]==2 && tl[grow] ) *));
+	long tnb3 = count((* tl:Tiller, (tl[ID]==3 && tl[grow] ) *));
+	long tnb4 = count((* tl:Tiller, (tl[ID]==4 && tl[grow] ) *));
+	par.TNBDyn.addRow().set(0,tnb1).set(1,tnb2);//.set(2,tnb3).set(3,tnb4);  //lfxu110120
+}
+
+//lfxu090721  printout to file
+protected void printOutToFile()
+{
+	PrintWriter file_intn = new PrintWriter(new FileWriter("D:\\outfile.txt"), true);
+	
+	file_intn.println(" " );
+	file_intn.println("----------INTERNODE----------");
+	float stemLength = 0;
+	for(int i=1; i<=par.FNN_INTERNODE; i++) 
+	{
+		Internode intn = first((* a:Internode, (a.rank == i) *));
+		if(intn != null)
+		{
+			file_intn.println("Rank: " + intn[rank] + ";   Length of internode: " + intn[length]);
+			stemLength += intn[length];
+		}
+	}
+	file_intn.println(" " );
+	file_intn.println("----------LEAF---------- ");
+	for(int i=1; i<=par.FNN_LEAF; i++) 
+	{
+		Leaf lf = first((* b:Leaf, (b.rank == i) *));
+		if(lf != null)
+		{
+			file_intn.println("Rank: " + lf[rank] + ";   Length of lf: " + lf[length]);
+		}
+	}
+		
+	file_intn.println(" " );
+	file_intn.println("Central carbon pool:  " + Parameter.INSTANCE.Cpool );
+	long grainNumber = count((* Grain *));
+	file_intn.println("Number of grains:  " + grainNumber);
+	file_intn.println("Length of the main stem: " + stemLength);
+	file_intn.flush();
+	file_intn.close();
+}*/
+
+//gbs100225
+//GBS100501
+/*public void testPS()
+{
+	println("Day 1:\t" + veg.PSdaily(1,1,1000));
+	
+}*/
+
+/* wy131119 close
+//lfxu100506
+public class FileAppendTest
+{
+    public void writeInfo(String str_log, String filePath)
+    {
+        FileWriter fw;
+        fw = new FileWriter(filePath,true); //true means appending data
+		fw.write(new Date() + " : " + str_log + "\r\n");
+		//fw.write(str_log + "\r\n");
+        fw.flush();
+		fw.close();
+    }
+	
+	public void headLine(String filePath)
+	{
+		FileWriter fw;
+		//String currentDir = System.getProperty("user.dir");
+		String currentDir = System.getProperty("user.dir");  //getRealPath(), getAbsolutePath()
+		fw = new FileWriter(filePath,true);
+		fw.write("\r\n"+currentDir+" Changed: \r\n");
+		fw.flush();
+		fw.close();
+	}
+	
+	public void checkFile(String filePath)  //not used, not needed
+	{
+		File fp = new File(filePath);
+		if(!fp.exists())
+		{
+			fp.createNewFile();
+		}
+	}
+}*/
+
+/* wy131119 close
+private void printLog()
+{
+	FileAppendTest fat = new FileAppendTest();
+	String filePath = "C:\\Users\\LifengXu\\GroIMP\\rice100506.log";
+	fat.headLine(filePath);
+	//fat.checkFile(filePath);   //no need to check the file, automatically creat it when it's absent
+    for(int i=0;i<10;i++)
+    {
+		fat.writeInfo("Log number: [" + i + "]", filePath);// + ", again...");
+		println("Writing... Number: "+(i+1)+"; all 10.");
+		Thread.sleep(1000);   //sleep 1000 ms
+	}
+}*/
+
+//System.getProperty("user.dir")
+
+/*public void raiseRuler()  //lfxu110107
+[
+	Ruler ==> Translate(0,0.02,0) Ruler;
+]
+
+public void lowerRuler()  //lfxu110107
+[
+	Ruler ==> Translate(0,-0.02,0) Ruler;
+]
+
+public void determinePH()  //lfxu110107
+[
+	rl:Ruler ::> println("Plant height:\t" + location(rl).z );
+	//rl:Ruler ::> println("Position (x,y,z):\t" + location(rl).x+", "+ location(rl).y+", "+ location(rl).z);
+]*/
+
+/*public void rulerLeft()
+[
+	Ruler ==> Translate(0,0,-0.4) Ruler;
+]
+
+public void rulerRight()
+[
+	Ruler ==> Translate(0,0,0.4) Ruler;
+]
+
+public void RdLf()
+[
+	lf:Leaf ==>;
+]*/
+
+/* wy131119 close
+protected void printGenotype()  //lfxu110214
+[
+	{PrintWriter genoPt = new PrintWriter(new FileWriter("C:\\Users\\LifengXu\\Documents\\GroIMP_Data\\genotype_01.txt"));} //lfxu110327
+	ind:Individual -par.GEN_EDGE-> Genotype [ch1:Chromo ch2:Chromo]
+	::>
+	{
+		//println("genotype of Plant "+ind[ID]+": "+Arrays.toString(ch1.genoChromo));
+		genoPt.println("genotype of Plant "+ind[ID]+": "+Arrays.toString(ch1.mkChromo)); //lfxu110326
+	}
+	{genoPt.close();}
+]*/
+
+/*wy131119 close
+protected void ptGen()  //lfxu110321  //lfxu120712, public --> protected
+[
+	{PrintWriter outpf = new PrintWriter(new FileWriter("C:\\Users\\LifengXu\\Documents\\GroIMP_Data\\ptGen_01.txt"));}  
+	ind:Individual -par.GEN_EDGE-> g:Genotype [ch1:Chromo ch2:Chromo]
+	::>
+	{
+		println("QTL of Plant "+ind[ID]+": "+Arrays.toString(ch1.genoChromo));
+		//println("Marker: "+Arrays.toString(ch1.mkChromo));  //lfxu110326
+		//println("Marker Number: "+Parameter.INSTANCE.mkNumber);
+		outpf.println("QE of individual: "+ind[ID]+"  --> "+g.QE[0]+" "+ g.QE[1]+" "+g.QE[2]+"  "+g.QE[3]);  //lfxu110327
+	}
+	{outpf.close();}
+]*/
+
+/* wy131119 close
+//lfxu120712, public --> protected
+protected void breed2()   //lfxu110321, no selection, but IDs to determine the individuals
+{
+	for (apply (1)) Genetics.INSTANCE.breed();
+}*/

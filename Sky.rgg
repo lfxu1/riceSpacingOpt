@@ -1,0 +1,80 @@
+import RiceBreeder.*;
+
+//light sources
+module Light (float pow) extends LightNode()
+{
+	{setLight(new DirectionalLight().(setPowerDensity(pow)));}
+}
+
+module SunPoint(float altitude, float azimuth, float power)
+==>
+	[ RU(azimuth) RL(-altitude) M(ConstPara.SUN_DIST) RL(180) Light(power) ]
+;
+
+/*
+module DiffusedLight(float altitude, float azimuth, float power)
+==>
+	[ RU(azimuth) RL(altitude) M(ConstPara.LIGHT_DIST) RL(180) Light(power) ]
+;*/
+
+//gbs100225: new sky object, consisting of 72 directional light sources
+module DiffSingLight (float pow) extends LightNode()
+{ 
+	//{setLight(new DirectionalLight().(setPowerDensity(pow)));}
+	/* {setLight(new SpotLight().(setPower(pow), setInnerAngle(1.5), setOuterAngle(1.45),
+	setAttenuationExponent(0)));}*/
+	{setLight(new DirectionalLight().(setPowerDensity(pow)));}
+}
+
+//module Tiankong(int doy, int time, float power);
+module Tiankong(int year, int month, int day, int hour, float power);
+
+//create sky
+protected void build()
+[
+	//sky
+	//pred: .s:Tiankong(doy, time, power)
+	pred: .s:Tiankong(year, month, day, hour, power)
+	==> RL(90)
+		  [ for (int i = 1; i<=12; i++) ([ RU(i*360/12) RL(-11.7) M(ConstPara.LIGHT_DIST) RL(180) DiffSingLight(power*0.003218/0.205)] )]
+		  [ for (int i = 1; i<=12; i++) ([ RU(20) RU(i*360/12) RL(-34.2) M(ConstPara.LIGHT_DIST) RL(180) DiffSingLight(power*0.01163/0.563)] )]
+		  [ for (int i = 1; i<=12; i++) ([ RU(40) RU(i*360/12) RL(-54.9) M(ConstPara.LIGHT_DIST) RL(180) DiffSingLight(power*0.019812/0.817)] )]
+		  [ for (int i = 1; i<=12; i++) ([ RU(60) RU(i*360/12) RL(-71.1) M(ConstPara.LIGHT_DIST) RL(180) DiffSingLight(power*0.023022/0.945)] )]
+		  [ for (int i = 1; i<=12; i++) ([ RU(80) RU(i*360/12) RL(-82.8) M(ConstPara.LIGHT_DIST) RL(180) DiffSingLight(power*0.018522/0.991)] )]
+		  [ for (int i = 1; i<=12; i++) ([ RU(80) RU(i*360/12) RL(-89.1) M(ConstPara.LIGHT_DIST) RL(180) DiffSingLight(power*0.007096/0.998)])]
+	;
+]
+
+protected void update(int year, int month, int day, int hour)
+[
+	{ 
+		float[] sunResult = SunFunction.getSun(year, month, day, hour); 
+		//println(year + "/" + month + "/" + day +  ": altitude:" + sunResult[0] + ", azimuth:" + sunResult[1]);
+	}
+	
+	s:SunPoint 
+	::>
+	{
+		s[altitude] = sunResult[0];
+		s[azimuth] = sunResult[1];
+		s[power] = sunResult[2];
+	}
+	
+	t:Tiankong 
+	::> 
+	{ 
+		t[year] = year;
+		t[month] = month;
+		t[day] = day;
+		t[hour] = hour;
+		//float[] y = Sun.INSTANCE.calcPos(ConstPara.observerLatitude, t[doy], ConstPara.HOUR);
+		//float[] y = SunFunction.getSun(t[year], t[month], t[day], t[hour]);
+		t[power] = sunResult[3];
+		//((SunSkyLight) t.getShader()).(setSun(y), setRadianceFactor(10));
+		//t.setPowerDensity(y[3]); 
+		//println(time + ": "+ y[3]);
+		//t[power] = y[3];
+		//Parameter.INSTANCE.doy = Parameter.INSTANCE.doy+1; //wy131125change to
+		//t[doy] = t[doy] + 1;
+	}
+]
