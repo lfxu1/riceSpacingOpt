@@ -1,0 +1,764 @@
+import java.util.*;
+import java.io.*;
+import ConstPara;
+import java.text.SimpleDateFormat;
+
+RiceBreeder riceBreeder = RiceBreeder.INSTANCE;
+//Maize_Soybean MS = Maize_Soybean.INSTANCE;
+Main main = Main.INSTANCE;                                             
+//MaizeVegetative mv = MaizeVegetative.INSTANCE;
+private ParticleSwarm() {
+}
+private static ParticleSwarm ps = new ParticleSwarm();
+public static ParticleSwarm getInstance() {
+	return ps;//获取唯一ps对象
+}
+protected int particle = 5;//粒子群中粒子数目
+protected int count = 0;
+protected int currBest = 0;
+protected int pattern = 0;
+protected double[][] riceRadiation = new double[maxTime+1][particle];
+protected double[][] soilRadiation = new double[maxTime+1][particle];
+protected double[][] unitSoilRadiation = new double[maxTime+1][particle];
+protected double[][] totalRadiation = new double[maxTime+1][particle];
+protected double[][] radiationForAll = new double[maxTime+1][3];//0->rice, 1->soil, 2->unitSoil
+protected double[] soilRadiationProcess = new double[maxTime+1];
+protected double lessSoilRadiation;
+protected double[] llessSoilRadiation = new double[particle];
+protected double[][] lllessRate = new double[maxTime+1][particle];
+
+public double[][] fitness = new double[maxTime+1][2];//0为grainDM，1为grainDM/area
+
+public static final int maxTime = 300; //最大优化代数，终止条件，1为初始时的优化
+public int numForOp = 2;//0为种内间距，1为种间间距。
+
+boolean dis = false;                
+int currG = 0;
+
+double[] tempR = new double[particle];
+double[][] tempS = new double[particle][numForOp];
+
+public int currentGeneration = 0;
+private int parDim = 2;//粒子群维度,横纵坐标
+private int PSONum = 9;//粒子群优化数目
+private final int range = 5;//速度上下限；用(Math.random()+1.5)*(range);返回[7.5,12.5]间的一个任意的值
+private double[] v = new double[9];//由玉米,大豆相互变异的概率
+private double w = 0.9;//getW();
+public int[][][] maiOrSoy = new int[maxTime+1][particle][9];//判断是否为玉米，1为玉米，0为大豆
+private int num = 0;
+public boolean same = false;//判断相邻两次优化过程是否相同
+public double[][][] parv = new double[maxTime+1][particle][numForOp];//第currentGeneration次的粒子的间距离速度
+public double[][][] PSOspacing = new double[maxTime+1][particle][numForOp];//位置信息
+protected int[] bestG = new int[3];//0->出现的迭代深度，1->改迭代深度中的具体粒子，3->实际change point
+
+public double[] PSOgBestspacing = new double[numForOp];//群体最优位置间距信息
+protected double[][] PSOlBestspacing = new double[particle][numForOp];//粒子历史最优间距信息
+protected double[][] spacingProcess = new double[maxTime+1][numForOp];//存储每次粒子更新中最优的位置
+public double times = 0;
+SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+String startTime = format.format(new Date());;
+public int startC = 25, stopC = 275;//startC = 75, stopC = 225;
+public int changeC = 0;
+protected boolean change = false;
+
+public static final int norows = 9;//7
+public static final int nocols = 9;//4;  2 individuals: P1 & P2
+public static final int plantNumber = norows*nocols;
+	
+public double soybeanspacing = 30;
+public double maizespacing = 30;
+public double maizessoybeanpacing = 30;
+public double spacing = 30;//种内间距
+
+public void setTime(int sta, int sto){
+	startC = sta;
+	stopC = sto;
+}
+
+public double getResult(){
+	return lessSoilRadiation;
+}
+
+public String getDetails(){
+	return "start:"+startC+" stop:"+stopC+" change:"+bestG[2]+" result:"+lessSoilRadiation;
+}
+
+protected double getW(){                       
+	double getW = 0.9 - 0.5*Math.log(currentGeneration)/Math.log(maxTime);
+	return getW;
+}
+
+protected void preparation(){//对粒子的位置和速度进行初始化
+	//startTime = null;
+	//存储默认位置信息
+	double temp = 40;
+	
+	for(int i=0; i<particle; i++){
+		for(int j=0; j<numForOp; j++){
+			PSOspacing[0][i][j] = temp;
+		}
+	}
+	
+	for(int i=0; i<numForOp; i++){
+		spacingProcess[0][i] = temp;
+	}
+	
+	for(int i = 0; i<numForOp; i++){
+		PSOgBestspacing[i] = temp;
+	}
+	
+	for(int i=0; i<particle; i++){
+		for(int j = 0; j<numForOp; j++){
+			PSOlBestspacing[i][j] = temp;
+		}
+	}
+	
+	for(int i = 0; i < particle; i++){//初始随机速度
+		for(int j=0; j<numForOp; j++){
+			int tep = (int)(Math.random()*10);
+			
+			if(tep%2==0){
+				parv[0][i][j] = (Math.random()+1.5)*(range);
+			}
+			if(tep%2==1){
+				parv[0][i][j] = -(Math.random()+1.5)*(range);
+			}
+		}
+	}
+	
+	setValue();
+}
+
+protected void optimize(int x, int time){
+	updateFitness();
+	//updateChartPre();
+	//currentGeneration++;
+	if(count==0&&currentGeneration<=maxTime)//(currentGeneration<=maxTime)
+		updatePSO();
+}
+
+protected void updateChart(){
+	//riceBreeder.updateSpacingChart();
+	/*MS.updateSpacingChart();
+	MS.updateRadiationChart();
+	MS.updateUnitSoilRadiationChart();
+	MS.updateSoilAbsorbedRadiationChart();*/
+	
+}
+
+protected void updateChartPre(){
+	/*MS.updateRadiationChart();
+	MS.updateUnitSoilRadiationChart();
+	MS.updateSoilAbsorbedRadiationChart();*/
+	//println("run pre");
+}
+
+protected void updateChartSuf(){
+	//MS.updateSpacingChart();
+	//println("run suf");
+}
+
+protected void updateFitness(){//更新适应度值
+	
+	if(currentGeneration==0){
+		for(int i=0; i<numForOp; i++){
+			PSOlBestspacing[i] = PSOspacing[0][i];
+			//llessSoilRadiation[i] = lllessRate[0][i];
+			//println("------------"+lllessRate[0][i]);
+		}
+		for(int i=0; i<particle; i++){
+			llessSoilRadiation[i] = lllessRate[0][i];
+		}
+		lessSoilRadiation = llessSoilRadiation[0];
+		bestG[0] = currentGeneration;
+		bestG[1] = 0;
+	}
+	
+	/*if(llessSoilRadiation[count]>unitSoilRadiation[currentGeneration][count]){
+		llessSoilRadiation[count] = unitSoilRadiation[currentGeneration][count];
+		PSOlBestspacing[count] = PSOspacing[currentGeneration][count];
+	}*/
+	if(llessSoilRadiation[count]<lllessRate[currentGeneration][count]){
+		llessSoilRadiation[count] = lllessRate[currentGeneration][count];
+		for(int i=0; i<numForOp; i++) {
+			PSOlBestspacing[count][i] = PSOspacing[currentGeneration][count][i];
+		}
+	}
+	
+	if(lessSoilRadiation<llessSoilRadiation[count]){
+		lessSoilRadiation = llessSoilRadiation[count];
+		bestG[0] = currentGeneration;
+		bestG[1] = count;
+		currBest = count;
+		for(int i=0; i<numForOp; i++) {
+			PSOgBestspacing[i] = PSOspacing[currentGeneration][count][i];
+		}
+	}
+	
+	println("lessSoilRadiation:"+lessSoilRadiation);
+	
+	radiationForAll[currentGeneration][0] = lllessRate[currentGeneration][currBest];
+	//println(radiationForAll[currentGeneration][0]+" curr:"+currentGeneration+" test:"+lllessRate[0][0]);
+	//println("test2:"+lllessRate[0][1]);
+	
+	radiationForAll[currentGeneration][1] = totalRadiation[currentGeneration][currBest];
+	radiationForAll[currentGeneration][2] = totalRadiation[currentGeneration][currBest];
+	//println("-------------------------------------------------");
+	//println("best:"+totalRadiation[currentGeneration][currBest]);
+	//println("-------------------------------------------------");
+	spacingProcess[currentGeneration] = PSOspacing[currentGeneration][currBest];
+	
+	if(currentGeneration == startC&&count==4) {
+		changeC = (stopC - startC)*bestG[0]/startC + startC;
+	}
+	
+	count++;
+	
+	if(currentGeneration==0||count==5){
+		updateChart();
+		count = 0;
+		currentGeneration++;
+		//println("run++");
+	}
+}
+
+protected double getArea(int num)
+{
+	//return 40*40-(5*PSOspacing[currentGeneration][num][0])*(10*PSOspacing[currentGeneration][num][1]);
+	return PSOspacing[currentGeneration][num][0] * PSOspacing[currentGeneration][num][1] * (ConstPara.norows-1)*(ConstPara.nocols-1);
+}
+
+protected double getArea(int cg, int count)
+{
+	return PSOspacing[cg][count][0] * PSOspacing[cg][count][0] * 9/10000;
+}
+
+protected void updateSpacing(){
+	
+	if(!change&&currentGeneration>startC){	
+		if(changeC==currentGeneration||currentGeneration==stopC||changeC==startC){
+			change = true;
+			bestG[2] = currentGeneration;
+			println("change in cg:"+currentGeneration);
+		}
+	}
+	if(!change){
+		w = getW();
+		double c1 = 2;//1.75;//1.5;//学习因子
+		double c2 = 2;//1.75;//1.5;
+		
+		for(int i=0; i<particle; i++){
+			for(int j = 0; j < numForOp; j++){
+				double r1 = Math.random();//形成[0,1]的随机数
+				double r2 = Math.random();
+				parv[currentGeneration][i][j] = w*parv[currentGeneration-1][i][j] + 
+				c1*r1*(PSOgBestspacing[j] - PSOspacing[currentGeneration-1][i][j])
+					+ c2*r2*(PSOlBestspacing[i][j] - PSOspacing[currentGeneration-1][i][j]);
+				
+				PSOspacing[currentGeneration][i][j] = format_2(PSOspacing[currentGeneration-1][i][j] + parv[currentGeneration][i][j]);
+			}
+		}
+	}else{
+		double c1 = 2.05;//压缩因子配合y使用
+		double c2 = 2.05;
+		double y = 0.729;
+		
+		for(int i=0; i<particle; i++){
+			for(int j = 0; j < numForOp; j++){
+				double r1 = Math.random();//形成[0,1]的随机数
+				double r2 = Math.random();
+				
+				parv[currentGeneration][i][j] = y*(parv[currentGeneration-1][i][j] + 
+					c1*r1*(PSOgBestspacing[j] - PSOspacing[currentGeneration-1][i][j])
+					+ c2*r2*(PSOlBestspacing[i][j] - PSOspacing[currentGeneration-1][i][j]));
+					
+				PSOspacing[currentGeneration][i][j] = format_2(PSOspacing[currentGeneration-1][i][j] + parv[currentGeneration][i][j]);
+			}
+		}
+	}
+	
+	setValue();
+}
+
+protected void updatePSO(){//更新扰动
+	
+	updateSpacing();
+
+	//if(!dis){
+		/*for(int i = 0; i<particle; i++){
+			tempR[i] = soilRadiation[currentGeneration][i];
+			for(int j=0; j<numForOp; j++){
+				 tempS[i][j] = PSOspacing[currentGeneration][i][j];
+			}
+		}*/
+	
+		for(int i=0; i<particle; i++){
+			int time = 0;//每个粒子的dis2有次数限制
+			for(int j=0; j<numForOp; j++){
+				//int time = 0;
+				disturb_1(i, j);
+				while(judge(i, j)&&time<2/*64*/){
+					disturb_2(i, j);
+					time++;
+					dis = true;
+					currG = currentGeneration;
+				}
+				setValue(i, j);
+			}
+		}
+	//}
+	
+	/*if(dis&&currG==(currentGeneration-1)){
+		//main.dis = true;
+		//main.optimize();
+		
+		for(int i=0; i<particle; i++){//删除无用扰动
+			if(tempR[i]>soilRadiation[currentGeneration][i]){
+				soilRadiation[currentGeneration][i] = tempR[i];
+				for(int j=0; j<numForOp; j++){
+					PSOspacing[currentGeneration][i][j] = tempS[i][j];
+				}
+			}
+		}
+		dis = false;
+	}*/
+}
+
+private void disturb_1(int i, int j){
+	
+	//double temp = Math.cos((Math.PI/2)*currentGeneration/maxTime);
+	double temp = Math.cos((Math.PI/2)*currentGeneration/maxTime)/2;//change in 180516
+	double ran = Math.random();
+	
+	if(ran<temp){
+		dis = true;
+		//println("run disturb_1");
+		if(currentGeneration<maxTime/2){
+			ran = Math.random();
+			if(ran<0.25){
+				double ra = (Math.random()-0.5)*4;
+				PSOspacing[currentGeneration][i][j] = (ra)*PSOspacing[currentGeneration][i][j];
+			}else if(ran<0.5){
+				double r1 = Math.random();
+				double r2 = Math.random();
+				double r3 = Math.random();
+				PSOspacing[currentGeneration][i][j] = (r1+r2)*r3*PSOspacing[currentGeneration][i][j];
+			}else if(ran<0.75){
+				double ga = new Random().nextGaussian();
+				PSOspacing[currentGeneration][i][j] = ga*PSOspacing[currentGeneration][i][j];
+			}else{
+				PSOspacing[currentGeneration][i][j] = Math.random()*70+5;//[5,75]范围内随机间距
+			}
+		}
+	}
+}
+
+private void disturb_2(int i, int j){
+	
+	if(currentGeneration>=2){
+		dis = true;
+		println("disturb_2");
+		double rand = (Math.random()-0.5)*4;
+		if(bestG[0]==0)
+			PSOspacing[currentGeneration][i][j] = (PSOspacing[bestG[0]+1][bestG[1]][j] + PSOspacing[bestG[0]+2][bestG[1]][j])*rand;
+		else if(bestG[0]==currentGeneration)
+			PSOspacing[currentGeneration][i][j] = (PSOspacing[bestG[0]-1][bestG[1]][j] + PSOspacing[bestG[0]-2][bestG[1]][j])*rand;
+		else
+			PSOspacing[currentGeneration][i][j] = (PSOspacing[bestG[0]+1][bestG[1]][j] + PSOspacing[bestG[0]-2][bestG[1]][j])*rand;
+	}
+}
+
+protected boolean judge(int j, int k){
+	
+	if(change)
+		return false;
+	else{
+		int m = 10;
+		int count = 0;
+		for(int i = currentGeneration-1; i>=currentGeneration-m&&currentGeneration>m; i--){
+			if((PSOspacing[i][j][k] - PSOspacing[currentGeneration][j][k])<1)
+				count++;
+		}
+		if(count == m){
+			return true;
+		}
+		return false;
+	}
+}
+
+protected void display(){
+	println("The best innerspacing is " + PSOgBestspacing[0] + ";");
+	println("The best outspacing is " + PSOgBestspacing[1] + ";");
+	println("The soil Radiation is " + lessSoilRadiation);
+}
+
+protected void write(int cg, int count){
+	//println("++++++++++++++++++++++++ps"+radiationForAll);
+	println("run write in fit");
+	//File file = new File("C:/Users/Administrator/Desktop/Maize_Soybean/result/resultforRice_"+cg+"_"+count+".txt");
+	File file = new File("C:/Users/DELL/Desktop/Maize_Soybean/result/resultforRice_"+cg+"_"+count+".txt");
+	//File file = new File("C:/Users/DELL/Desktop/Maize_Soybean/txt/resultfor21.txt");
+	FileWriter  wf = new FileWriter(file);
+	
+	if(!file.exists()){
+		file.createNewFile();
+	}
+	try{
+		/*for(int i=0;i<=maxTime;i++){
+			wf.write(i+"\t");
+			for(int j=0;j<numForOp;j++){
+				wf.write(format_int(spacingProcess[i][j])+"\t");
+				//wf.write(lllessRate[i][j]+"\r\n");
+			}
+			wf.write(fit[i][1]+"\t");
+			wf.write(fit[i][2]+"\r\n");
+		}*/
+		for(int i=0; i<fitness.length; i++){
+			wf.write(i+"\t");
+			for(int j=0; j<fitness[i].length; j++){
+				wf.write(format_int(spacingProcess[i][j])+"\t");
+			}
+			wf.write(fitness[i][0]+"\t");
+			wf.write(fitness[i][1]+"\r\n");
+		}
+		wf.write("The best spacing are: \t");
+		for(int i = 0; i<numForOp;i++){
+			wf.write(PSOgBestspacing[i]);
+			if(i!=numForOp-1)
+				wf.write("\t");
+		}
+		wf.write("\r\n");
+		wf.write("And the max rate is: ");
+		wf.write(lessSoilRadiation+"\r\n");
+		wf.write("And the change point is: ");
+		wf.write(bestG[2]+"\r\n");
+		
+		String endTime = format.format(new Date());
+		wf.write(startTime+"\t"+endTime+"\r\n");
+	}catch(IOException e){
+		e.printStackTrace();
+	}
+	finally{
+		try{
+			wf.close();
+		}catch(IOException e){
+			e.printStackTrace();
+		}
+	}
+}
+
+protected void write(double[][] fit){
+	println("run write in main");
+	//File file = new File("C:/Users/Administrator/Desktop/Maize_Soybean/result/resultforMain_"+currentGeneration+"_"+count+".txt");
+	File file = new File("C:/Users/DELL/Desktop/Maize_Soybean/result/resultforMain_"+currentGeneration+"_"+count+".txt");
+	//File file = new File("C:/Users/DELL/Desktop/Maize_Soybean/txt/resultfor21.txt");
+	FileWriter  wf = new FileWriter(file);
+	
+	if(!file.exists()){
+		file.createNewFile();
+	}
+	try{
+		/*for(int i=0;i<=maxTime;i++){
+			wf.write(i+"\t");
+			for(int j=0;j<numForOp;j++){
+				wf.write(format_int(spacingProcess[i][j])+"\t");
+				//wf.write(lllessRate[i][j]+"\r\n");
+			}
+			wf.write(fit[i][1]+"\t");
+			wf.write(fit[i][2]+"\r\n");
+		}*/
+		for(int i=0; i<fit.length; i++){
+			wf.write(i+"\t");
+			for(int j=0; j<fit[i].length; j++){
+				wf.write(format_int(spacingProcess[i][j])+"\t");
+			}
+			wf.write(fit[i][0]+"\t");
+			wf.write(fit[i][1]+"\r\n");
+		}
+		wf.write("The best spacing are: \t");
+		for(int i = 0; i<numForOp;i++){
+			wf.write(PSOgBestspacing[i]);
+			if(i!=numForOp-1)
+				wf.write("\t");
+		}
+		wf.write("\r\n");
+		wf.write("And the max rate is: ");
+		wf.write(lessSoilRadiation+"\r\n");
+		wf.write("And the change point is: ");
+		wf.write(bestG[2]+"\r\n");
+		
+		String endTime = format.format(new Date());
+		wf.write(startTime+"\t"+endTime+"\r\n");
+	}catch(IOException e){
+		e.printStackTrace();
+	}
+	finally{
+		try{
+			wf.close();
+		}catch(IOException e){
+			e.printStackTrace();
+		}
+	}
+}
+
+protected void write(){
+	println("run write in ps");
+	if(pattern == 0){
+		//File file = new File("C:/Users/Administrator/Desktop/Maize_Soybean/result/resultforRice.txt");
+		File file = new File("C:/Users/DELL/Desktop/Maize_Soybean/result/resultforRice.txt");
+		//File file = new File("C:/Users/DELL/Desktop/Maize_Soybean/txt/resultfor21.txt");
+		FileWriter  wf = new FileWriter(file);
+	
+		if(!file.exists()){
+			file.createNewFile();
+		}
+		try{
+			for(int i=0;i<=maxTime;i++){
+				wf.write(i+"\t");
+				for(int j=0;j<numForOp;j++){
+					wf.write(format_int(spacingProcess[i][j])+"\t");
+					//wf.write(lllessRate[i][j]+"\r\n");
+				}
+				wf.write(radiationForAll[i][1]+"\t");
+				wf.write(radiationForAll[i][2]+"\r\n");
+			}
+			wf.write("The best spacing are: \t");
+			for(int i = 0; i<numForOp;i++){
+				wf.write(PSOgBestspacing[i]);
+				if(i!=numForOp-1)
+					wf.write("\t");
+			}
+			wf.write("\r\n");
+			wf.write("And the max rate is: ");
+			wf.write(lessSoilRadiation+"\r\n");
+			wf.write("And the change point is: ");
+			wf.write(bestG[2]+"\r\n");
+			
+			String endTime = format.format(new Date());
+			wf.write(startTime+"\t"+endTime+"\r\n");
+		}catch(IOException e){
+			e.printStackTrace();
+		}
+		finally{
+			try{
+				wf.close();
+			}catch(IOException e){
+				e.printStackTrace();
+			}
+		}
+	}
+	
+	if(pattern == 1){
+		File file = new File("C:/Users/DELL/Desktop/Maize_Soybean/result/resultfor32.txt");
+		FileWriter  wf = new FileWriter(file);
+	
+		if(!file.exists()){
+			file.createNewFile();
+		}
+		try{
+			for(int i=0;i<=maxTime;i++){
+				wf.write(i+"\t");
+				for(int j=0;j<numForOp;j++){
+					wf.write(format_int(spacingProcess[i][j])+"\t");
+				}
+				wf.write(soilRadiationProcess[i]+"\r\n");
+			}
+			wf.write("The best spacing are: \r\n");
+			for(int i = 0; i<numForOp;i++){
+				wf.write(PSOgBestspacing[i]);
+				if(i!=numForOp-1)
+					wf.write("\t");
+			}
+			wf.write("\r\n");
+			wf.write("And the less soil radiation is: ");
+			wf.write(lessSoilRadiation+"\r\n");
+			wf.write("And the change point is: ");
+			wf.write(bestG[2]+"\r\n");
+			
+			String endTime = format.format(new Date());
+			wf.write(startTime+"\t"+endTime+"\r\n");
+		}catch(IOException e){
+			e.printStackTrace();
+		}
+		finally{
+			try{
+				wf.close();
+			}catch(IOException e){
+				e.printStackTrace();
+			}
+		}
+	}
+	
+	if(pattern == 2){
+		File file = new File("C:/Users/DELL/Desktop/Maize_Soybean/result/resultforRandom.txt");
+		FileWriter  wf = new FileWriter(file);
+	
+		if(!file.exists()){
+			file.createNewFile();
+		}
+		try{
+			for(int i=0;i<=maxTime;i++){
+				wf.write(i+"\t");
+				for(int j=0;j<numForOp;j++){
+					wf.write(format_int(spacingProcess[i][j])+"\t");
+				}
+				wf.write(soilRadiationProcess[i]+"\r\n");
+			}
+			wf.write("The best spacing are: \r\n");
+			for(int i = 0; i<numForOp;i++){
+				wf.write(PSOgBestspacing[i]);
+				if(i!=numForOp-1)
+					wf.write("\t");
+			}
+			wf.write("\r\n");
+			wf.write("And the less soil radiation is: ");
+			wf.write(lessSoilRadiation+"\r\n");
+			wf.write("And the change point is: ");
+			wf.write(bestG[2]+"\r\n");
+			
+			String endTime = format.format(new Date());
+			wf.write(startTime+"\t"+endTime+"\r\n");
+		}catch(IOException e){
+			e.printStackTrace();
+		}
+		finally{
+			try{
+				wf.close();
+			}catch(IOException e){
+				e.printStackTrace();
+			}
+		}
+	}
+	
+	if(pattern == 3){
+		File file = new File("C:/Users/DELL/Desktop/Maize_Soybean/result/resultforSoybean.txt");
+		FileWriter  wf = new FileWriter(file);
+	
+		if(!file.exists()){
+			file.createNewFile();
+		}
+		try{
+			for(int i=0;i<=maxTime;i++){
+				wf.write(i+"\t");
+				for(int j=0;j<numForOp;j++){
+					wf.write(format_int(spacingProcess[i][j])+"\t");
+				}
+				wf.write(soilRadiationProcess[i]+"\r\n");
+			}
+			wf.write("The best spacing are: \r\n");
+			for(int i = 0; i<numForOp;i++){
+				wf.write(PSOgBestspacing[i]);
+				if(i!=numForOp-1)
+					wf.write("\t");
+			}
+			wf.write("\r\n");
+			wf.write("And the less soil radiation is: ");
+			wf.write(lessSoilRadiation+"\r\n");
+			wf.write("And the change point is: ");
+			wf.write(bestG[2]+"\r\n");
+			
+			String endTime = format.format(new Date());
+			wf.write(startTime+"\t"+endTime+"\r\n");
+		}catch(IOException e){
+			e.printStackTrace();
+		}
+		finally{
+			try{
+				wf.close();
+			}catch(IOException e){
+				e.printStackTrace();
+			}
+		}
+	}
+	
+	if(pattern == 4){
+		File file = new File("C:/Users/DELL/Desktop/Maize_Soybean/result/resultforMaize.txt");
+		FileWriter  wf = new FileWriter(file);
+	
+		if(!file.exists()){
+			file.createNewFile();
+		}
+		try{
+			for(int i=0;i<=maxTime;i++){
+				wf.write(i+"\t");
+				for(int j=0;j<numForOp;j++){
+					wf.write(format_int(spacingProcess[i][j])+"\t");
+				}
+				wf.write(soilRadiationProcess[i]+"\r\n");
+			}
+			wf.write("The best spacing are: \r\n");
+			for(int i = 0; i<numForOp;i++){
+				wf.write(PSOgBestspacing[i]);
+				if(i!=numForOp-1)
+					wf.write("\t");
+			}
+			wf.write("\r\n");
+			wf.write("And the less soil radiation is: ");
+			wf.write(lessSoilRadiation+"\r\n");
+			wf.write("And the change point is: ");
+			wf.write(bestG[2]+"\r\n");
+			
+			String endTime = format.format(new Date());
+			wf.write(startTime+"\t"+endTime+"\r\n");
+		}catch(IOException e){
+			e.printStackTrace();
+		}
+		finally{
+			try{
+				wf.close();
+			}catch(IOException e){
+				e.printStackTrace();
+			}
+		}
+	}
+}
+
+protected void setValue(){
+	for(int i = 0; i<particle; i++){
+		for(int j=0; j<numForOp; j++){
+			while(PSOspacing[currentGeneration][i][j]<5||PSOspacing[currentGeneration][i][j]>145){
+				double tem = Math.random();
+				if(PSOspacing[currentGeneration][i][j]<5)
+					PSOspacing[currentGeneration][i][j] = format_2(5+currentGeneration/(maxTime*tem));
+				if(PSOspacing[currentGeneration][i][j]>145)
+					PSOspacing[currentGeneration][i][j] = format_2(145-currentGeneration/(maxTime*tem));
+			}
+		}
+	}
+}
+
+protected void setValue(int i, int j){
+	while(PSOspacing[currentGeneration][i][j]<5||PSOspacing[currentGeneration][i][j]>145){
+		double tem = Math.random();
+		if(PSOspacing[currentGeneration][i][j]<5)
+			PSOspacing[currentGeneration][i][j] = format_2(5+currentGeneration/(maxTime*tem));
+		if(PSOspacing[currentGeneration][i][j]>145)
+			PSOspacing[currentGeneration][i][j] = format_2(145-currentGeneration/(maxTime*tem));
+	}
+}
+
+protected double format_2(double x){
+	return ((double)((int)(x*100)))/100;
+}
+
+protected int format_int(double x){
+	return (int)(x);
+}
+
+public void setFitness(int cg, int count, double fit, double area) {
+	if(count==0) {
+		fitness[cg][0] = fit;
+		fitness[cg][1] = fit/area;
+		main.fit[cg][0] = fit;
+		main.fit[cg][1] = fit/area;
+		//println("fitness[cg][0]:"+fitness[cg][0]+" fitness[cg][1]:"+fitness[cg][1]);
+	} else {
+		if(fitness[cg][1] < (fit/area)) {
+			fitness[cg][0] = fit;
+			fitness[cg][1] = fit/area;
+			main.fit[cg][0] = fit;
+			main.fit[cg][1] = fit/area;
+		}
+	}
+	//println("main_0:"+main.fit[cg][0]+" main_1:"+main.fit[cg][1]);
+}

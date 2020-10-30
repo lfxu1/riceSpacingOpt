@@ -1,0 +1,276 @@
+
+/**
+ * modules: entities needed as objects in the model
+ * @author weiyang 20131125
+ */
+
+import Vegetative.*;
+
+//final Vegetative veg = Vegetative.INSTANCE;
+
+module Germ
+{
+	int ID; //lfxu100406
+	/*int getID()
+	{
+		return ID;
+	}*/
+}
+
+// genotype of individual rice plant, represented as a blue-white label below the plant.
+module Individual extends TextLabel
+{
+	{
+		setAlignment (Attributes.H_ALIGN_CENTER, Attributes.V_ALIGN_TOP);
+		setFillColor(new Color3f(0,1,0)); //GBS100430
+		setColor(new Color3f(0,0,1));
+		setOutlined(true);
+	}
+	
+	int ID; //lfxu110214
+	void setID(int id)
+	{
+		ID=id;
+	}
+	
+	int growDays = 0;
+	
+	//final Vegetative veg = Vegetative.INSTANCE;
+	
+	float CpoolStart = 0; 
+	float Cpool = 0.15*4;
+	float leafLocPool = 0;
+	float consumer = 0;
+	
+	float SinkDemand = 0;
+	float totalLeafSink = 0;
+	float totalInternodeSink = 0;
+	float totalGrainSink = 0;
+	float totalInternodeRadiusSink = 0;
+	
+	float totalDryMass = 0;
+	float internodeDM = 0; 
+	float leafDM = 0;
+	float grainDM = 0;
+	
+	float internodeDMGrowth = 0; 
+	float leafDMGrowth = 0;
+	float grainDMGrowth = 0;
+	
+	long grainNumber = 0;
+	long grainFinalNumber = 0;
+	
+	float leafArea = 0;
+	float leafRadiation = 0;
+	
+	boolean earFlag = false; //是否已经计算了最大籽粒数目//是否可计算最大籽粒数目的标记
+	int earGrowDays = 0;
+	
+	public void leafArea()
+	{
+		leafArea = sum((* a1:Leaf, (a1[ID]==ID)  *).area);
+	}
+	
+	public void leafRadiation()
+	{
+		float leafRadiation = sum((* a2:Leaf, (a2[ID]==ID)  *).radiation);
+	}
+	
+	public void leafProducer()
+	{
+		//--------Cpool = Cpool + producer---------- //wy131119 mark
+		leafLocPool = sum((* a3:Leaf, (a3[ID]==ID) *).locPool);
+		//lfxu100226, remove the flag
+		//Cpool += sum((* a:Leaf, (a[ID]==ID) *).locPool);//.locPool())*10;//lfxu101203 //wy131121 //wy131124
+		//Cpool += 5;//lfxu101203 // adjustment factor//wy131125
+		Cpool += leafLocPool;
+		if(RiceBreeder.INSTANCE.breedTime<30)
+		{
+			Cpool += 0.1;
+		}
+	}
+	
+	public void updateCpool()
+	{
+		Cpool = Math.max(Cpool, 0.1);  //lfxu100517
+		CpoolStart = Cpool;
+		consumer = 0;
+	}
+	
+	//maintenance respiration.
+	public void maintenanceRespiration()
+	{
+		//--------Cpool = Cpool - consumer---------- //wy131119 mark
+		//maintenance respiration.
+		//0.014g Glucose consumed for 1g DryMass
+		float res_m = 0.014 * totalDryMass;
+		Cpool -= res_m;
+		consumer += res_m; //131128test
+	}
+	
+	//protected void getSinkDemand(int id) //wy131121change to
+	protected void updateSinkDemand() 
+	{
+		//wy131124
+		totalLeafSink = sum((* a4:Leaf, (a4.isGrowing() && a4[ID]==ID) *).updatePgr());
+		totalInternodeSink = sum((* b:Internode, (b.isGrowing() && b[ID]==ID) *).updatePgr());
+		totalGrainSink = sum((* c:Grain, (c[ID]==ID) *).updatePgr());
+		totalInternodeRadiusSink = sum((* d:Internode, (d.isGrowing() && d[ID]==ID) *).updateRadiusPgr()); //wy131124
+		//intn.updatePgr(); //wy131124
+		//intn.updateRadiusPgr(); //131124
+		//println("I" + ID + " pgr(leaf, intn, grain): " + totalLeafSink + ", " +
+		//	totalInternodeSink + ", " + totalGrainSink);
+		
+		float epsilon = 0.001;
+		//float SinkDemand = getTotalLeafSink() + getTotalInternodeSink() + getTotalGrainSink(); //wy131124
+		float sinkDemand = totalLeafSink + totalInternodeSink + totalGrainSink;// + totalInternodeRadiusSink; //wy131124
+		if(sinkDemand > 0) 
+		{
+			SinkDemand = sinkDemand; 
+		} else 
+		{
+			SinkDemand = epsilon;
+		}
+	}
+	
+	public void updateAgr() 
+	{
+		//wy131124
+		if(Cpool>0)
+		{
+			leafDMGrowth = sum((* a5:Leaf, (a5.isGrowing() && a5[ID]==ID) *).updateAgr(SinkDemand, Cpool));
+			internodeDMGrowth = sum((* b:Internode, (b.isGrowing() && b[ID]==ID) *).updateAgr(SinkDemand, Cpool));
+			grainDMGrowth = sum((* c:Grain, (c[ID]==ID) *).updateAgr(SinkDemand, Cpool));
+		} else 
+		{ //wy131128
+			leafDMGrowth = 0;
+			internodeDMGrowth = 0;
+			grainDMGrowth = 0;
+		}
+		//println("I" + ID + " agr(leaf, intn, grain): " + leafDMGrowth + ", " + internodeDMGrowth + ", " + grainDMGrowth);
+	}
+	
+	/*
+	public void modifyMorphology()
+	{
+		veg.morphology();
+	}*/
+	
+	public void rootConsumer()
+	{
+		/*
+		//Partition to the root
+		float partition_coeff; 
+		float t_rel = RiceBreeder.INSTANCE.breedTime/ConstPara.TOTAL_GROWTH_LEN; //relative time 
+		if(t_rel < 0.18) 
+		{
+			partition_coeff = 0.5;
+		} else if(t_rel < 0.25 && t_rel >= 0.18) 
+		{
+			partition_coeff = 4.3 * t_rel - 0.274;
+		} else 
+		{
+			partition_coeff = Math.min(0.2 * t_rel + 0.75, 0.95);
+		}*/
+		//lfxu100515
+		//partition_coeff = Math.min(1, partition_coeff);  //lfxu100517
+		float partition_coeff = 0.85;
+		consumer += Cpool*(1-partition_coeff);
+		Cpool *= partition_coeff; // root consume // wy131119 
+	}
+	
+	public void morphologyConsumer()
+	{
+		//--------Cpool = Cpool - consumer---------- //wy131119 mark
+		//--------consumer---------- //wy131119 mark
+		//biomass increasing of organs(leaves and internodes)
+		float bioMassVeg_inc = internodeDMGrowth + leafDMGrowth;
+		//biomass increasing of grains
+		float bioMassGra_inc = grainDMGrowth;//*grainNumber; //wy131126
+		//Glucose consumed from the Cpool
+		//for structure construct and growth respiration, 1.43g glucase --> 1g biomass
+		float glu_growth = bioMassVeg_inc * 1.43 + bioMassGra_inc / 0.81; //wy131128close
+		//float glu_growth = bioMassVeg_inc + bioMassGra_inc; //wy131128test
+		if(count((* lf:Leaf, (lf[ID]==ID) *)) > 3)  //lfxu090731, the first three leaves are fed by the endosperm
+		{  
+			consumer += glu_growth;
+			//Parameter.INSTANCE.Cpool *= partition_coeff;
+			Cpool -= glu_growth; 
+			//Parameter.INSTANCE.Cpool[id-1] -= res_m; //wy131124
+		}
+	}
+	
+	protected void updateGrainNumber()
+	{
+		grainNumber = count((* g:Grain, (g[ID]==ID) *));
+	}
+
+	//-----------dry mass------------ //wy131119
+	//update internodeDM, leafDM, grainNumber, grainDM, totalDM
+	protected void updateDryMass() {
+		internodeDM = sum((* intn:Internode, (intn[ID]==ID) *).dryMass);
+		leafDM = sum((* lf:Leaf, (lf[ID]==ID) *).dryMass);
+		grainDM = sum((* gr:Grain, (gr[ID]==ID) *).dryMass); //already in g
+		totalDryMass = internodeDM + leafDM + grainDM;
+	}
+	
+	//-----------sink------------ //wy131119
+	/*
+	protected float getTotalLeafSink() {
+		return sum((* a:Leaf, (a[ID]==ID) *).updatePgr());  //getPgr()-->pgr, wy131121
+	}
+	protected float getTotalInternodeSink() {
+		return sum((* b:Internode, (b[ID]==ID) *).updatePgr()); //getPgr()-->pgr, wy131121
+	}
+	protected float getTotalGrainSink() {
+		return sum((* c:Grain, (c[ID]==ID) *).updatePgr()); //getPgr()-->pgr, wy131121
+	}*/
+	
+}
+
+/* Cell generally represents here a functional and structural unit in which processes can take place and among which substances can
+be exchanged */
+module Cell (super.length, super.diameter, super.color) extends F; 
+
+/* Meristem is the active division and organ formation zone of the plant: depending upon the plastochron, the leaf rank and the branching
+order, new leaves are formed */
+module Meristem (double plastChron, int rank, int order, int age, boolean grownOut) extends Cell(0.00001, 0.000001, 1)
+{
+	int ID;  //lfxu100406
+	void setID(int id)
+	{
+		ID = id;
+	}
+	
+	float angle = 0;
+	
+	{
+		setLayer(14);
+		setShader(new AlgorithmSwitchShader(new RGBAShader(1, 1, 1, 1), BLACK));
+	}
+}
+
+/**
+ * @param rank
+ * @param order
+ * @param isGrowing
+ */
+module Tiller (int rank, int order, boolean isGrowing) //gbs101105  //lfxu101105  //lfxu101220
+{
+	int ID; //lfxu101105
+	void setID(int id)
+	{
+		ID = id;
+	}
+	boolean grow = isGrowing;  //define the growing tiller
+	int tl_num;// = 0;  //the number of the tillers, for cutting  //lfxu101224
+}
+
+module noTiller (int rank, int order)  //lfxu101224, tiller senescence->noTiller
+{
+	int ID;
+	void setID(int id)
+	{	ID = id;}
+	int noTl_num;
+}
+
