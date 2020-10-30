@@ -1,0 +1,2 @@
+This is the model for rice visualization and simulation, combined with the optimization algorithms.
+The model should run within modelling platform GroIMP v 1.5, and code file should be compressed within one gsz file which is acceptable by GroIMP.
