@@ -4,16 +4,14 @@ import ConstPara;
 import java.text.SimpleDateFormat;
 
 RiceBreeder riceBreeder = RiceBreeder.INSTANCE;
-//Maize_Soybean MS = Maize_Soybean.INSTANCE;
 Main main = Main.INSTANCE;                                             
-//MaizeVegetative mv = MaizeVegetative.INSTANCE;
 private ParticleSwarm() {
 }
 private static ParticleSwarm ps = new ParticleSwarm();
 public static ParticleSwarm getInstance() {
-	return ps;//»ñÈ¡Î¨Ò»ps¶ÔÏó
+	return ps;//è·å–å”¯ä¸€pså¯¹è±¡
 }
-protected int particle = 5;//Á£×ÓÈºÖĞÁ£×ÓÊıÄ¿
+protected int particle = 5;//ç²’å­ç¾¤ä¸­ç²’å­æ•°ç›®
 protected int count = 0;
 protected int currBest = 0;
 protected int pattern = 0;
@@ -27,10 +25,10 @@ protected double lessSoilRadiation;
 protected double[] llessSoilRadiation = new double[particle];
 protected double[][] lllessRate = new double[maxTime+1][particle];
 
-public double[][] fitness = new double[maxTime+1][2];//0ÎªgrainDM£¬1ÎªgrainDM/area
+public double[][] fitness = new double[maxTime+1][2];//0ä¸ºgrainDMï¼Œ1ä¸ºgrainDM/area
 
-public static final int maxTime = 300; //×î´óÓÅ»¯´úÊı£¬ÖÕÖ¹Ìõ¼ş£¬1Îª³õÊ¼Ê±µÄÓÅ»¯
-public int numForOp = 2;//0ÎªÖÖÄÚ¼ä¾à£¬1ÎªÖÖ¼ä¼ä¾à¡£
+public static final int maxTime = 300; //æœ€å¤§ä¼˜åŒ–ä»£æ•°ï¼Œç»ˆæ­¢æ¡ä»¶ï¼Œ1ä¸ºåˆå§‹æ—¶çš„ä¼˜åŒ–
+public int numForOp = 2;//0ä¸ºç§å†…é—´è·ï¼Œ1ä¸ºç§é—´é—´è·ã€‚
 
 boolean dis = false;                
 int currG = 0;
@@ -39,21 +37,21 @@ double[] tempR = new double[particle];
 double[][] tempS = new double[particle][numForOp];
 
 public int currentGeneration = 0;
-private int parDim = 2;//Á£×ÓÈºÎ¬¶È,ºá×İ×ø±ê
-private int PSONum = 9;//Á£×ÓÈºÓÅ»¯ÊıÄ¿
-private final int range = 5;//ËÙ¶ÈÉÏÏÂÏŞ£»ÓÃ(Math.random()+1.5)*(range);·µ»Ø[7.5,12.5]¼äµÄÒ»¸öÈÎÒâµÄÖµ
-private double[] v = new double[9];//ÓÉÓñÃ×,´ó¶¹Ïà»¥±äÒìµÄ¸ÅÂÊ
+private int parDim = 2;//ç²’å­ç¾¤ç»´åº¦,æ¨ªçºµåæ ‡
+private int PSONum = 9;//ç²’å­ç¾¤ä¼˜åŒ–æ•°ç›®
+private final int range = 5;//é€Ÿåº¦ä¸Šä¸‹é™ï¼›ç”¨(Math.random()+1.5)*(range);è¿”å›[7.5,12.5]é—´çš„ä¸€ä¸ªä»»æ„çš„å€¼
+private double[] v = new double[9];//ç”±ç‰ç±³,å¤§è±†ç›¸äº’å˜å¼‚çš„æ¦‚ç‡
 private double w = 0.9;//getW();
-public int[][][] maiOrSoy = new int[maxTime+1][particle][9];//ÅĞ¶ÏÊÇ·ñÎªÓñÃ×£¬1ÎªÓñÃ×£¬0Îª´ó¶¹
+public int[][][] maiOrSoy = new int[maxTime+1][particle][9];//åˆ¤æ–­æ˜¯å¦ä¸ºç‰ç±³ï¼Œ1ä¸ºç‰ç±³ï¼Œ0ä¸ºå¤§è±†
 private int num = 0;
-public boolean same = false;//ÅĞ¶ÏÏàÁÚÁ½´ÎÓÅ»¯¹ı³ÌÊÇ·ñÏàÍ¬
-public double[][][] parv = new double[maxTime+1][particle][numForOp];//µÚcurrentGeneration´ÎµÄÁ£×ÓµÄ¼ä¾àÀëËÙ¶È
-public double[][][] PSOspacing = new double[maxTime+1][particle][numForOp];//Î»ÖÃĞÅÏ¢
-protected int[] bestG = new int[3];//0->³öÏÖµÄµü´úÉî¶È£¬1->¸Äµü´úÉî¶ÈÖĞµÄ¾ßÌåÁ£×Ó£¬3->Êµ¼Êchange point
+public boolean same = false;//åˆ¤æ–­ç›¸é‚»ä¸¤æ¬¡ä¼˜åŒ–è¿‡ç¨‹æ˜¯å¦ç›¸åŒ
+public double[][][] parv = new double[maxTime+1][particle][numForOp];//ç¬¬currentGenerationæ¬¡çš„ç²’å­çš„é—´è·ç¦»é€Ÿåº¦
+public double[][][] PSOspacing = new double[maxTime+1][particle][numForOp];//ä½ç½®ä¿¡æ¯
+protected int[] bestG = new int[3];//0->å‡ºç°çš„è¿­ä»£æ·±åº¦ï¼Œ1->æ”¹è¿­ä»£æ·±åº¦ä¸­çš„å…·ä½“ç²’å­ï¼Œ3->å®é™…change point
 
-public double[] PSOgBestspacing = new double[numForOp];//ÈºÌå×îÓÅÎ»ÖÃ¼ä¾àĞÅÏ¢
-protected double[][] PSOlBestspacing = new double[particle][numForOp];//Á£×ÓÀúÊ·×îÓÅ¼ä¾àĞÅÏ¢
-protected double[][] spacingProcess = new double[maxTime+1][numForOp];//´æ´¢Ã¿´ÎÁ£×Ó¸üĞÂÖĞ×îÓÅµÄÎ»ÖÃ
+public double[] PSOgBestspacing = new double[numForOp];//ç¾¤ä½“æœ€ä¼˜ä½ç½®é—´è·ä¿¡æ¯
+protected double[][] PSOlBestspacing = new double[particle][numForOp];//ç²’å­å†å²æœ€ä¼˜é—´è·ä¿¡æ¯
+protected double[][] spacingProcess = new double[maxTime+1][numForOp];//å­˜å‚¨æ¯æ¬¡ç²’å­æ›´æ–°ä¸­æœ€ä¼˜çš„ä½ç½®
 public double times = 0;
 SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 String startTime = format.format(new Date());;
@@ -68,7 +66,7 @@ public static final int plantNumber = norows*nocols;
 public double soybeanspacing = 30;
 public double maizespacing = 30;
 public double maizessoybeanpacing = 30;
-public double spacing = 30;//ÖÖÄÚ¼ä¾à
+public double spacing = 30;//ç§å†…é—´è·
 
 public void setTime(int sta, int sto){
 	startC = sta;
@@ -88,9 +86,9 @@ protected double getW(){
 	return getW;
 }
 
-protected void preparation(){//¶ÔÁ£×ÓµÄÎ»ÖÃºÍËÙ¶È½øĞĞ³õÊ¼»¯
+protected void preparation(){//å¯¹ç²’å­çš„ä½ç½®å’Œé€Ÿåº¦è¿›è¡Œåˆå§‹åŒ–
 	//startTime = null;
-	//´æ´¢Ä¬ÈÏÎ»ÖÃĞÅÏ¢
+	//å­˜å‚¨é»˜è®¤ä½ç½®ä¿¡æ¯
 	double temp = 40;
 	
 	for(int i=0; i<particle; i++){
@@ -113,7 +111,7 @@ protected void preparation(){//¶ÔÁ£×ÓµÄÎ»ÖÃºÍËÙ¶È½øĞĞ³õÊ¼»¯
 		}
 	}
 	
-	for(int i = 0; i < particle; i++){//³õÊ¼Ëæ»úËÙ¶È
+	for(int i = 0; i < particle; i++){//åˆå§‹éšæœºé€Ÿåº¦
 		for(int j=0; j<numForOp; j++){
 			int tep = (int)(Math.random()*10);
 			
@@ -131,40 +129,24 @@ protected void preparation(){//¶ÔÁ£×ÓµÄÎ»ÖÃºÍËÙ¶È½øĞĞ³õÊ¼»¯
 
 protected void optimize(int x, int time){
 	updateFitness();
-	//updateChartPre();
-	//currentGeneration++;
 	if(count==0&&currentGeneration<=maxTime)//(currentGeneration<=maxTime)
 		updatePSO();
 }
 
-protected void updateChart(){
-	//riceBreeder.updateSpacingChart();
-	/*MS.updateSpacingChart();
-	MS.updateRadiationChart();
-	MS.updateUnitSoilRadiationChart();
-	MS.updateSoilAbsorbedRadiationChart();*/
-	
+protected void updateChart(){	
 }
 
 protected void updateChartPre(){
-	/*MS.updateRadiationChart();
-	MS.updateUnitSoilRadiationChart();
-	MS.updateSoilAbsorbedRadiationChart();*/
-	//println("run pre");
 }
 
 protected void updateChartSuf(){
-	//MS.updateSpacingChart();
-	//println("run suf");
 }
 
-protected void updateFitness(){//¸üĞÂÊÊÓ¦¶ÈÖµ
+protected void updateFitness(){//æ›´æ–°é€‚åº”åº¦å€¼
 	
 	if(currentGeneration==0){
 		for(int i=0; i<numForOp; i++){
 			PSOlBestspacing[i] = PSOspacing[0][i];
-			//llessSoilRadiation[i] = lllessRate[0][i];
-			//println("------------"+lllessRate[0][i]);
 		}
 		for(int i=0; i<particle; i++){
 			llessSoilRadiation[i] = lllessRate[0][i];
@@ -174,10 +156,6 @@ protected void updateFitness(){//¸üĞÂÊÊÓ¦¶ÈÖµ
 		bestG[1] = 0;
 	}
 	
-	/*if(llessSoilRadiation[count]>unitSoilRadiation[currentGeneration][count]){
-		llessSoilRadiation[count] = unitSoilRadiation[currentGeneration][count];
-		PSOlBestspacing[count] = PSOspacing[currentGeneration][count];
-	}*/
 	if(llessSoilRadiation[count]<lllessRate[currentGeneration][count]){
 		llessSoilRadiation[count] = lllessRate[currentGeneration][count];
 		for(int i=0; i<numForOp; i++) {
@@ -197,15 +175,9 @@ protected void updateFitness(){//¸üĞÂÊÊÓ¦¶ÈÖµ
 	
 	println("lessSoilRadiation:"+lessSoilRadiation);
 	
-	radiationForAll[currentGeneration][0] = lllessRate[currentGeneration][currBest];
-	//println(radiationForAll[currentGeneration][0]+" curr:"+currentGeneration+" test:"+lllessRate[0][0]);
-	//println("test2:"+lllessRate[0][1]);
-	
+	radiationForAll[currentGeneration][0] = lllessRate[currentGeneration][currBest];	
 	radiationForAll[currentGeneration][1] = totalRadiation[currentGeneration][currBest];
 	radiationForAll[currentGeneration][2] = totalRadiation[currentGeneration][currBest];
-	//println("-------------------------------------------------");
-	//println("best:"+totalRadiation[currentGeneration][currBest]);
-	//println("-------------------------------------------------");
 	spacingProcess[currentGeneration] = PSOspacing[currentGeneration][currBest];
 	
 	if(currentGeneration == startC&&count==4) {
@@ -224,7 +196,6 @@ protected void updateFitness(){//¸üĞÂÊÊÓ¦¶ÈÖµ
 
 protected double getArea(int num)
 {
-	//return 40*40-(5*PSOspacing[currentGeneration][num][0])*(10*PSOspacing[currentGeneration][num][1]);
 	return PSOspacing[currentGeneration][num][0] * PSOspacing[currentGeneration][num][1] * (ConstPara.norows-1)*(ConstPara.nocols-1);
 }
 
@@ -244,12 +215,12 @@ protected void updateSpacing(){
 	}
 	if(!change){
 		w = getW();
-		double c1 = 2;//1.75;//1.5;//Ñ§Ï°Òò×Ó
+		double c1 = 2;//1.75;//1.5;//å­¦ä¹ å› å­
 		double c2 = 2;//1.75;//1.5;
 		
 		for(int i=0; i<particle; i++){
 			for(int j = 0; j < numForOp; j++){
-				double r1 = Math.random();//ĞÎ³É[0,1]µÄËæ»úÊı
+				double r1 = Math.random();//å½¢æˆ[0,1]çš„éšæœºæ•°
 				double r2 = Math.random();
 				parv[currentGeneration][i][j] = w*parv[currentGeneration-1][i][j] + 
 				c1*r1*(PSOgBestspacing[j] - PSOspacing[currentGeneration-1][i][j])
@@ -259,13 +230,13 @@ protected void updateSpacing(){
 			}
 		}
 	}else{
-		double c1 = 2.05;//Ñ¹ËõÒò×ÓÅäºÏyÊ¹ÓÃ
+		double c1 = 2.05;//å‹ç¼©å› å­é…åˆyä½¿ç”¨
 		double c2 = 2.05;
 		double y = 0.729;
 		
 		for(int i=0; i<particle; i++){
 			for(int j = 0; j < numForOp; j++){
-				double r1 = Math.random();//ĞÎ³É[0,1]µÄËæ»úÊı
+				double r1 = Math.random();//å½¢æˆ[0,1]çš„éšæœºæ•°
 				double r2 = Math.random();
 				
 				parv[currentGeneration][i][j] = y*(parv[currentGeneration-1][i][j] + 
@@ -280,20 +251,11 @@ protected void updateSpacing(){
 	setValue();
 }
 
-protected void updatePSO(){//¸üĞÂÈÅ¶¯
+protected void updatePSO(){//æ›´æ–°æ‰°åŠ¨
 	
-	updateSpacing();
-
-	//if(!dis){
-		/*for(int i = 0; i<particle; i++){
-			tempR[i] = soilRadiation[currentGeneration][i];
-			for(int j=0; j<numForOp; j++){
-				 tempS[i][j] = PSOspacing[currentGeneration][i][j];
-			}
-		}*/
-	
+	updateSpacing();	
 		for(int i=0; i<particle; i++){
-			int time = 0;//Ã¿¸öÁ£×ÓµÄdis2ÓĞ´ÎÊıÏŞÖÆ
+			int time = 0;//æ¯ä¸ªç²’å­çš„dis2æœ‰æ¬¡æ•°é™åˆ¶
 			for(int j=0; j<numForOp; j++){
 				//int time = 0;
 				disturb_1(i, j);
@@ -306,33 +268,15 @@ protected void updatePSO(){//¸üĞÂÈÅ¶¯
 				setValue(i, j);
 			}
 		}
-	//}
-	
-	/*if(dis&&currG==(currentGeneration-1)){
-		//main.dis = true;
-		//main.optimize();
-		
-		for(int i=0; i<particle; i++){//É¾³ıÎŞÓÃÈÅ¶¯
-			if(tempR[i]>soilRadiation[currentGeneration][i]){
-				soilRadiation[currentGeneration][i] = tempR[i];
-				for(int j=0; j<numForOp; j++){
-					PSOspacing[currentGeneration][i][j] = tempS[i][j];
-				}
-			}
-		}
-		dis = false;
-	}*/
 }
 
 private void disturb_1(int i, int j){
 	
-	//double temp = Math.cos((Math.PI/2)*currentGeneration/maxTime);
 	double temp = Math.cos((Math.PI/2)*currentGeneration/maxTime)/2;//change in 180516
 	double ran = Math.random();
 	
 	if(ran<temp){
 		dis = true;
-		//println("run disturb_1");
 		if(currentGeneration<maxTime/2){
 			ran = Math.random();
 			if(ran<0.25){
@@ -347,7 +291,7 @@ private void disturb_1(int i, int j){
 				double ga = new Random().nextGaussian();
 				PSOspacing[currentGeneration][i][j] = ga*PSOspacing[currentGeneration][i][j];
 			}else{
-				PSOspacing[currentGeneration][i][j] = Math.random()*70+5;//[5,75]·¶Î§ÄÚËæ»ú¼ä¾à
+				PSOspacing[currentGeneration][i][j] = Math.random()*70+5;//[5,75]èŒƒå›´å†…éšæœºé—´è·
 			}
 		}
 	}
@@ -393,26 +337,14 @@ protected void display(){
 }
 
 protected void write(int cg, int count){
-	//println("++++++++++++++++++++++++ps"+radiationForAll);
 	println("run write in fit");
-	//File file = new File("C:/Users/Administrator/Desktop/Maize_Soybean/result/resultforRice_"+cg+"_"+count+".txt");
-	File file = new File("C:/Users/DELL/Desktop/Maize_Soybean/result/resultforRice_"+cg+"_"+count+".txt");
-	//File file = new File("C:/Users/DELL/Desktop/Maize_Soybean/txt/resultfor21.txt");
+	File file = new File("result/resultforRice_"+cg+"_"+count+".txt");
 	FileWriter  wf = new FileWriter(file);
 	
 	if(!file.exists()){
 		file.createNewFile();
 	}
 	try{
-		/*for(int i=0;i<=maxTime;i++){
-			wf.write(i+"\t");
-			for(int j=0;j<numForOp;j++){
-				wf.write(format_int(spacingProcess[i][j])+"\t");
-				//wf.write(lllessRate[i][j]+"\r\n");
-			}
-			wf.write(fit[i][1]+"\t");
-			wf.write(fit[i][2]+"\r\n");
-		}*/
 		for(int i=0; i<fitness.length; i++){
 			wf.write(i+"\t");
 			for(int j=0; j<fitness[i].length; j++){
@@ -449,24 +381,13 @@ protected void write(int cg, int count){
 
 protected void write(double[][] fit){
 	println("run write in main");
-	//File file = new File("C:/Users/Administrator/Desktop/Maize_Soybean/result/resultforMain_"+currentGeneration+"_"+count+".txt");
-	File file = new File("C:/Users/DELL/Desktop/Maize_Soybean/result/resultforMain_"+currentGeneration+"_"+count+".txt");
-	//File file = new File("C:/Users/DELL/Desktop/Maize_Soybean/txt/resultfor21.txt");
+	File file = new File("result/resultforMain_"+currentGeneration+"_"+count+".txt");
 	FileWriter  wf = new FileWriter(file);
 	
 	if(!file.exists()){
 		file.createNewFile();
 	}
 	try{
-		/*for(int i=0;i<=maxTime;i++){
-			wf.write(i+"\t");
-			for(int j=0;j<numForOp;j++){
-				wf.write(format_int(spacingProcess[i][j])+"\t");
-				//wf.write(lllessRate[i][j]+"\r\n");
-			}
-			wf.write(fit[i][1]+"\t");
-			wf.write(fit[i][2]+"\r\n");
-		}*/
 		for(int i=0; i<fit.length; i++){
 			wf.write(i+"\t");
 			for(int j=0; j<fit[i].length; j++){
@@ -504,9 +425,7 @@ protected void write(double[][] fit){
 protected void write(){
 	println("run write in ps");
 	if(pattern == 0){
-		//File file = new File("C:/Users/Administrator/Desktop/Maize_Soybean/result/resultforRice.txt");
-		File file = new File("C:/Users/DELL/Desktop/Maize_Soybean/result/resultforRice.txt");
-		//File file = new File("C:/Users/DELL/Desktop/Maize_Soybean/txt/resultfor21.txt");
+		File file = new File("result/resultforRice.txt");
 		FileWriter  wf = new FileWriter(file);
 	
 		if(!file.exists()){
@@ -549,7 +468,7 @@ protected void write(){
 	}
 	
 	if(pattern == 1){
-		File file = new File("C:/Users/DELL/Desktop/Maize_Soybean/result/resultfor32.txt");
+		File file = new File("result/resultfor32.txt");
 		FileWriter  wf = new FileWriter(file);
 	
 		if(!file.exists()){
@@ -590,7 +509,7 @@ protected void write(){
 	}
 	
 	if(pattern == 2){
-		File file = new File("C:/Users/DELL/Desktop/Maize_Soybean/result/resultforRandom.txt");
+		File file = new File("result/resultforRandom.txt");
 		FileWriter  wf = new FileWriter(file);
 	
 		if(!file.exists()){
@@ -631,7 +550,7 @@ protected void write(){
 	}
 	
 	if(pattern == 3){
-		File file = new File("C:/Users/DELL/Desktop/Maize_Soybean/result/resultforSoybean.txt");
+		File file = new File("result/resultforSoybean.txt");
 		FileWriter  wf = new FileWriter(file);
 	
 		if(!file.exists()){
@@ -672,7 +591,7 @@ protected void write(){
 	}
 	
 	if(pattern == 4){
-		File file = new File("C:/Users/DELL/Desktop/Maize_Soybean/result/resultforMaize.txt");
+		File file = new File("result/resultforMaize.txt");
 		FileWriter  wf = new FileWriter(file);
 	
 		if(!file.exists()){
@@ -760,5 +679,4 @@ public void setFitness(int cg, int count, double fit, double area) {
 			main.fit[cg][1] = fit/area;
 		}
 	}
-	//println("main_0:"+main.fit[cg][0]+" main_1:"+main.fit[cg][1]);
 }
