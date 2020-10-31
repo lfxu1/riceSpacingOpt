@@ -5,142 +5,135 @@ import Chromosome.*;
 import java.util.HashMap;
 
 final Field field = Field.INSTANCE;                          
-//final Sky sky = Sky.INSTANCE;
 
 RiceBreeder riceBreeder = RiceBreeder.INSTANCE;
-GA ga = new GA();
 ParticleSwarm ps = ParticleSwarm.getInstance();
 public double[][] fit = new double[ps.maxTime+1][2];
 protected float start = 0;
 public int count = 0;
 public int cg = 0;
-public int runTime = ps.maxTime;//ÔËĞĞ´ÎÊı
+public int runTime = ps.maxTime;//è¿è¡Œæ¬¡æ•°
 private boolean stopOp = false;
 public double[][] duplicate = new double[ps.maxTime+1][2];
 
 /**
- * HashMap<K,V>: KÎªChromosome£¬ VÎªChromosomeµÄÊÊÓ¦¶ÈÖµ
- * ¹¦ÄÜ£º´æ·Å³öÏÖ¹ıµÄChromosome
- * ÓÃÍ¾£ºÈç¹ûChromosomeÒÑ¾­´æÔÚ£¬ÄÇÃ´¾Í²»ĞèÒª¶Ô¸Ã¸öÌå½øĞĞÊÊÓ¦¶ÈÖµ¼ÆËã£¬
- *       ½«ÒÑ¾­´æÔÚµÄÖµ¿½±´µ½¸ÃChromosomeÖĞ
+ * HashMap<K,V>: Kä¸ºChromosomeï¼Œ Vä¸ºChromosomeçš„é€‚åº”åº¦å€¼
+ * åŠŸèƒ½ï¼šå­˜æ”¾å‡ºç°è¿‡çš„Chromosome
+ * ç”¨é€”ï¼šå¦‚æœChromosomeå·²ç»å­˜åœ¨ï¼Œé‚£ä¹ˆå°±ä¸éœ€è¦å¯¹è¯¥ä¸ªä½“è¿›è¡Œé€‚åº”åº¦å€¼è®¡ç®—ï¼Œ
+ *       å°†å·²ç»å­˜åœ¨çš„å€¼æ‹·è´åˆ°è¯¥Chromosomeä¸­
  */
  HashMap hashMap = new HashMap();
-//HashMap<Chromosome, Double> hashMap = new HashMap<Chromosome, Double>();
 
 int runCounter = 0;
 
 public int pattern = 0;
 private boolean change = true;
 
-//-----------------------------Õû¸ö³ÌĞòµÄÈë¿Ú-----------------------------------
-//³õÊ¼»¯³¡¾°
+//-----------------------------æ•´ä¸ªç¨‹åºçš„å…¥å£-----------------------------------
+//åˆå§‹åŒ–åœºæ™¯
 protected void init()
 {
-	//create "Tiankong", "Land" and "Population" modules //wy131125
 	field.build(riceBreeder.year, riceBreeder.month, riceBreeder.day, riceBreeder.hour); 
-	riceBreeder.sky.build(); //½¨Á¢Ìì¿Õ
+	riceBreeder.sky.build(); //å»ºç«‹å¤©ç©º
 	if(change) {
 		start = System.currentTimeMillis();
 		ps.preparation();
 		riceBreeder.initSpacing();
 		change = false;
 	}
-	//print("cg:"+cg+" count:"+count+" ");
 	if(cg<runTime||(cg==runTime&&count!=4)){
-		field.newGeneration(); //²úÉúµ¾ÌïÖĞ¸öË®µ¾¸öÌå
+		field.newGeneration(); //äº§ç”Ÿç¨»ç”°ä¸­ä¸ªæ°´ç¨»ä¸ªä½“
 	}
 	else{
 		field.newGenerationFinal();
 	}
 }
 
-//-----------------------------FSPMÉú³¤²¿·Ö-------------------------------------
+//-----------------------------FSPMç”Ÿé•¿éƒ¨åˆ†-------------------------------------
 /**
- * Ö²ÖêµÄÉú³¤¹ı³Ì£¬Íâ²¿ÏÔÊ¾¼ÆËã£¬µã»÷detailedGrowºÍrun detailedGrow°´Å¥¾ù¿É
+ * æ¤æ ªçš„ç”Ÿé•¿è¿‡ç¨‹ï¼Œå¤–éƒ¨æ˜¾ç¤ºè®¡ç®—ï¼Œç‚¹å‡»detailedGrowå’Œrun detailedGrowæŒ‰é’®å‡å¯
  */
 public void detailedGrow() {
-	//³õÊ¼»¯¼ÇÂ¼ÎÄ¼ş
+	//åˆå§‹åŒ–è®°å½•æ–‡ä»¶
 	if(riceBreeder.breedTime == 1) {
 		ReportUtil.clear2();
-		ReportUtil.setTimeLog(ConstPara.growthLog, "Start time"); //¼ÇÂ¼ÓÅ»¯¿ªÊ¼Ê±¼ä
+		ReportUtil.setTimeLog(ConstPara.growthLog, "Start time"); //è®°å½•ä¼˜åŒ–å¼€å§‹æ—¶é—´
 		println("Field Population: " + ConstPara.norows + "*" + ConstPara.nocols);
-		riceBreeder.initCharts(); //µ¥ÖêÊ±Ê¹ÓÃ
+		riceBreeder.initCharts(); //å•æ ªæ—¶ä½¿ç”¨
 	}
-	riceBreeder.detailedGrow(); //Ö²ÖêÏêÏ¸Éú³¤¹ı³Ì
-	if(riceBreeder.breedTime == ConstPara.TOTAL_GROWTH_LEN) { //Ö²ÖêÉú³¤½áÊø
-		ReportUtil.setTimeLog(ConstPara.growthLog, "Final time"); //¼ÇÂ¼ÓÅ»¯½áÊøÊ±¼ä
+	riceBreeder.detailedGrow(); //æ¤æ ªè¯¦ç»†ç”Ÿé•¿è¿‡ç¨‹
+	if(riceBreeder.breedTime == ConstPara.TOTAL_GROWTH_LEN) { //æ¤æ ªç”Ÿé•¿ç»“æŸ
+		ReportUtil.setTimeLog(ConstPara.growthLog, "Final time"); //è®°å½•ä¼˜åŒ–ç»“æŸæ—¶é—´
 	}
 }
 
 /**
- * Ö²ÖêµÄÉú³¤¹ı³Ì£¬ÄÚ²¿Òş²Ø¼ÆËã£¬µã»÷hiddenGrow°´Å¥£¬¿ÉÒÔ¼«´óÌá¸ß³ÌĞòÔËĞĞËÙ¶È
+ * æ¤æ ªçš„ç”Ÿé•¿è¿‡ç¨‹ï¼Œå†…éƒ¨éšè—è®¡ç®—ï¼Œç‚¹å‡»hiddenGrowæŒ‰é’®ï¼Œå¯ä»¥æå¤§æé«˜ç¨‹åºè¿è¡Œé€Ÿåº¦
  */
 public void hiddenGrow() {
 	ReportUtil.clear2();
-	ReportUtil.setTimeLog(ConstPara.growthLog, "Start time"); //¼ÇÂ¼ÓÅ»¯¿ªÊ¼Ê±¼ä
+	ReportUtil.setTimeLog(ConstPara.growthLog, "Start time"); //è®°å½•ä¼˜åŒ–å¼€å§‹æ—¶é—´
 	println("Field Population: " + ConstPara.norows + "*" + ConstPara.nocols);
-	//riceBreeder.initCharts(); //µ¥ÖêÊ±Ê¹ÓÃ--------ºÍ
 	riceBreeder.hiddenGrow();
-	ReportUtil.setTimeLog(ConstPara.growthLog, "Final time"); //¼ÇÂ¼ÓÅ»¯¿ªÊ¼Ê±¼ä
+	ReportUtil.setTimeLog(ConstPara.growthLog, "Final time"); //è®°å½•ä¼˜åŒ–å¼€å§‹æ—¶é—´
 }
 
-///////////////////////////////ÓÅ»¯²¿·Ö/////////////////////////////////////////
-//ÓÅ»¯°´Å¥
+///////////////////////////////ä¼˜åŒ–éƒ¨åˆ†/////////////////////////////////////////
+//ä¼˜åŒ–æŒ‰é’®
 public void optimize()
 {
-	int whichGeneration = (runCounter)/ConstGaPara.populationSize; //¼ÆËãÓÅ»¯´úÊı
-	int whichIndPerGeneration = runCounter%ConstGaPara.populationSize + 1; //¼ÆËãÕâÊÇ¸Ã´úµÄµÚ¼¸¸ö¸öÌå£¬¿ØÖÆÃ¿Ò»´úµÄÖÖÈºÊıÄ¿
-	//ÅĞ¶ÏÊÇ·ñĞèÒªÉú³É¸Ã¸öÌå
+	int whichGeneration = (runCounter)/ConstGaPara.populationSize; //è®¡ç®—ä¼˜åŒ–ä»£æ•°
+	int whichIndPerGeneration = runCounter%ConstGaPara.populationSize + 1; //è®¡ç®—è¿™æ˜¯è¯¥ä»£çš„ç¬¬å‡ ä¸ªä¸ªä½“ï¼Œæ§åˆ¶æ¯ä¸€ä»£çš„ç§ç¾¤æ•°ç›®
+	//åˆ¤æ–­æ˜¯å¦éœ€è¦ç”Ÿæˆè¯¥ä¸ªä½“
 	if((whichGeneration<=ConstGaPara.maxGeneration) && 
 		(whichIndPerGeneration<=ConstGaPara.populationSize)) {
 		derive();
 		reset();
 		updateSysPara();
 		ga.setCurrentGeneration(whichGeneration); //wy131206
-		//ÅĞ¶ÏÊÇ·ñ³õÊ¼»¯ÖÖÈº
+		//åˆ¤æ–­æ˜¯å¦åˆå§‹åŒ–ç§ç¾¤
 		if((whichGeneration==0) && (whichIndPerGeneration==1)) {
-			//Êı¾İÎÄ¼ş³õÊ¼»¯
+			//æ•°æ®æ–‡ä»¶åˆå§‹åŒ–
 			ReportUtil.clear();
-			ReportUtil.setTimeLog(ConstGaPara.timeLog, "Start time"); //¼ÇÂ¼ÓÅ»¯¿ªÊ¼Ê±¼ä
-			ga.initPopulation();//³õÊ¼»¯ÖÖÈº
+			ReportUtil.setTimeLog(ConstGaPara.timeLog, "Start time"); //è®°å½•ä¼˜åŒ–å¼€å§‹æ—¶é—´
+			ga.initPopulation();//åˆå§‹åŒ–ç§ç¾¤
 			println("Field Population: " + ConstPara.norows + "*" + ConstPara.nocols);
 		} 
 		if((whichGeneration==1) && (whichIndPerGeneration==1)) {
 			println("Start Optimization: ");
 		}
 		print("G" + whichGeneration + ",R" + whichIndPerGeneration + " (");
-		//¸ù¾İChromosomeÊÇ·ñ´æÔÚ£¬¾ö¶¨ÊÇ·ñ½øĞĞÊÊÓ¦¶ÈÖµ¼ÆËã
-		if(hashMap.containsKey(ga.getPopulation()[whichIndPerGeneration-1])) { //´æÔÚ
-			//´ÓhashMapÖĞÈ¡³ö¸ÃChromosome£¬²¢°ÑÊÊÓ¦¶ÈÖµ¸³Öµ¸øgaµÄ±àºÅÎªwhichIndPerGenerationµÄChromosome
+		//æ ¹æ®Chromosomeæ˜¯å¦å­˜åœ¨ï¼Œå†³å®šæ˜¯å¦è¿›è¡Œé€‚åº”åº¦å€¼è®¡ç®—
+		if(hashMap.containsKey(ga.getPopulation()[whichIndPerGeneration-1])) { //å­˜åœ¨
+			//ä»hashMapä¸­å–å‡ºè¯¥Chromosomeï¼Œå¹¶æŠŠé€‚åº”åº¦å€¼èµ‹å€¼ç»™gaçš„ç¼–å·ä¸ºwhichIndPerGenerationçš„Chromosome
 			double tmpFitness = (Double)hashMap.get(ga.getPopulation()[whichIndPerGeneration-1]);
 			ga.getPopulation()[whichIndPerGeneration-1].setFitness(tmpFitness);
-		} else { //²»´æÔÚ
-			//¼ÆËãÊÊÓ¦¶È
-			//´«µİgaµÄÔ­Òò£¬gaÖĞ´øÓĞÖ²ÖêÉú³¤ĞèÒªµÄÊı¾İ
-			riceBreeder.setFitness(ga, whichGeneration, whichIndPerGeneration);//ÕâÊÇÒ»¸ö»ñµÃÊÊÓ¦¶ÈÖµµÄ¹ı³Ì
-			//riceBreeder.build(ga, whichGeneration, whichIndPerGeneration); 
-			//´ø×ÅÊÊÓ¦¶ÈÖµ°Ñ¸ÃChromosome´æ·Åµ½hashMapÖĞ
+		} else { //ä¸å­˜åœ¨
+			//è®¡ç®—é€‚åº”åº¦
+			//ä¼ é€’gaçš„åŸå› ï¼Œgaä¸­å¸¦æœ‰æ¤æ ªç”Ÿé•¿éœ€è¦çš„æ•°æ®
+			riceBreeder.setFitness(ga, whichGeneration, whichIndPerGeneration);//è¿™æ˜¯ä¸€ä¸ªè·å¾—é€‚åº”åº¦å€¼çš„è¿‡ç¨‹
+			//å¸¦ç€é€‚åº”åº¦å€¼æŠŠè¯¥Chromosomeå­˜æ”¾åˆ°hashMapä¸­
 			hashMap.put(ga.getPopulation()[whichIndPerGeneration-1], ga.getPopulation()[whichIndPerGeneration-1].getFitness());
 		}
-		//ÌáÊ¾¸öÌå¼ÆËãÍê±Ï
+		//æç¤ºä¸ªä½“è®¡ç®—å®Œæ¯•
 		println(" ) is presented. ");
-		//Ã¿´ú×îºóÒ»¸ö¸öÌå¼ÆËã½áÊøºó¶ÔGAÖÖÈº½øĞĞÅÅĞò¡¢¾«Ó¢Ñ¡Ôñ¡¢¼ÇÂ¼Ö²ÖêÖêĞÍºÍ²úÁ¿¡¢½ø»¯¡¢¾ºÕù
+		//æ¯ä»£æœ€åä¸€ä¸ªä¸ªä½“è®¡ç®—ç»“æŸåå¯¹GAç§ç¾¤è¿›è¡Œæ’åºã€ç²¾è‹±é€‰æ‹©ã€è®°å½•æ¤æ ªæ ªå‹å’Œäº§é‡ã€è¿›åŒ–ã€ç«äº‰
 		if(whichIndPerGeneration == ga.getPopulation().length) {
-			ga.sort(); //GAÖÖÈºÅÅĞò
-			ReportUtil.log(ga); //¼ÇÂ¼Ö²ÖêÖêĞÍºÍ²úÁ¿
+			ga.sort(); //GAç§ç¾¤æ’åº
+			ReportUtil.log(ga); //è®°å½•æ¤æ ªæ ªå‹å’Œäº§é‡
 			ReportUtil.div(ga);
-			println("G" + whichGeneration +  " is completed."); //ÌáÊ¾µÚ¼¸´úÓÅ»¯Íê±Ï
-			//Èç¹ûwhichGenerationÊÇConstGaPara.maxGenerationµÄ»°£¬¾ÍÊÇµÚmaxGeneration+1´ÎÓÅ»¯ÁË
+			println("G" + whichGeneration +  " is completed."); //æç¤ºç¬¬å‡ ä»£ä¼˜åŒ–å®Œæ¯•
+			//å¦‚æœwhichGenerationæ˜¯ConstGaPara.maxGenerationçš„è¯ï¼Œå°±æ˜¯ç¬¬maxGeneration+1æ¬¡ä¼˜åŒ–äº†
 			if(whichGeneration < ConstGaPara.maxGeneration) {
-				ga.elite(); //¾«Ó¢Ñ¡Ôñ
-				ga.evolve(); //GAÖÖÈº½ø»¯
-				ga.compete(); //GAÖÖÈº¾ºÕù
+				ga.elite(); //ç²¾è‹±é€‰æ‹©
+				ga.evolve(); //GAç§ç¾¤è¿›åŒ–
+				ga.compete(); //GAç§ç¾¤ç«äº‰
 			}
-			//¼ÇÂ¼ÓÅ»¯½áÊøÊ±¼ä£¬µÚmaxGeneration´ÎÓÅ»¯ºóÏÔÊ¾Éú³É×îÓÅ¸öÌå
+			//è®°å½•ä¼˜åŒ–ç»“æŸæ—¶é—´ï¼Œç¬¬maxGenerationæ¬¡ä¼˜åŒ–åæ˜¾ç¤ºç”Ÿæˆæœ€ä¼˜ä¸ªä½“
 			if(whichGeneration==ConstGaPara.maxGeneration) {
-				ReportUtil.setTimeLog(ConstGaPara.timeLog, "Finish time"); //¼ÇÂ¼ÓÅ»¯½áÊøÊ±¼ä
+				ReportUtil.setTimeLog(ConstGaPara.timeLog, "Finish time"); //è®°å½•ä¼˜åŒ–ç»“æŸæ—¶é—´
 				print("The Best Plant: (");
-				riceBreeder.displayTheBest(ga, whichGeneration, whichIndPerGeneration); //ÏÔÊ¾Éú³É×îÓÅ¸öÌå
+				riceBreeder.displayTheBest(ga, whichGeneration, whichIndPerGeneration); //æ˜¾ç¤ºç”Ÿæˆæœ€ä¼˜ä¸ªä½“
 				println(") is presented.");
 			}
 		}
@@ -153,55 +146,35 @@ public void optimizePSO()
 	float stop = 0;
 	if(!stopOp)
 	{
-		//getFitAdd("start");
 		if(riceBreeder.breedTime == 1) {
 			ReportUtil.clear();
-			ReportUtil.setTimeLog(ConstGaPara.timeLog, "Start time"); //¼ÇÂ¼ÓÅ»¯¿ªÊ¼Ê±¼ä
+			ReportUtil.setTimeLog(ConstGaPara.timeLog, "Start time"); //è®°å½•ä¼˜åŒ–å¼€å§‹æ—¶é—´
 			println("Field Population: " + ConstPara.norows + "*" + ConstPara.nocols);
-			//String s2="spacing ="+ConstPara.spacing;
-			riceBreeder.initCharts(); //µ¥ÖêÊ±Ê¹ÓÃ
+			riceBreeder.initCharts(); //å•æ ªæ—¶ä½¿ç”¨
 		}
 		
-		println("cg:"+cg+" count:"+count);//+" a £º"+stopOp);
-		riceBreeder.updatePSO(cg, count, ps.getArea(cg, count)); //Ö²ÖêÏêÏ¸Éú³¤¹ı³Ì
+		println("cg:"+cg+" count:"+count);//+" a ï¼š"+stopOp);
+		riceBreeder.updatePSO(cg, count, ps.getArea(cg, count)); //æ¤æ ªè¯¦ç»†ç”Ÿé•¿è¿‡ç¨‹
 		PSO(cg, count, ps.getArea(cg, count));
-		//updatePSOºó£¬´æ´¢µÄfitnessÇå¿Õ£¨£¿£©//ÔÚriceBreederÖĞ£¬Êı×éÎ»ÖÃ·¢ÉúÁË¸Ä±ä
-		//getFitAdd("before");
-		//println("============end:"+fit);
-		//getFitAdd("after");
-		//ps.write(fit);//riceBreederÖĞ±£´æÊÊÓ¦¶ÈÖµ£¬²»±£´æ¼ä¾à£¬´Ë´¦±£´æ¼ä¾à²»±£´æÊÊÓ¦¶ÈÖµ
 		
 		if(cg < runTime||count<5)
 		{
 			ps.optimize(pattern, count);
-			//println("run optimize");
 		}
 		
-		//println("cg+count"+cg+"+"+count);
 		if(cg == runTime&&count==4)
 		{
 			ps.write(cg, count);
-			//println("++++++++++++++++++++++++main"+ps.radiationForAll);
-			/*for(int i=0; i<fit.length; i++){
-				for(int j=0; j<fit[i].length; j++){
-					print(fit[i][j]+" ");
-				}
-			}
-			println();*/
 			ps.display();
 			stop = System.currentTimeMillis();
 			stopOp = true;
 			println("Time:"+(stop-start));
 			println("best cg:"+ps.bestG[0]+"_"+ps.bestG[1]);
-			//riceBreeder.updateSpacingChart(ps.spacingProcess[cg-1][0]);
-			//println("run final");
 		}
-		//ps.write(cg, count);
 		renew();
 		if(cg==0){
 			cg++;
 			riceBreeder.updateSpacingChart(ps.spacingProcess[cg-1][0], ps.spacingProcess[cg-1][1]);
-			//riceBreeder.updateSpacingChart(ps.spacingProcess[cg-1][0], ps.radiationForAll[cg-1][0], ps.radiationForAll[cg-1][1]);
 			return;
 		}
 	}
@@ -210,20 +183,16 @@ public void optimizePSO()
 		count=0;
 		cg++;
 		riceBreeder.updateSpacingChart(ps.spacingProcess[cg-1][0], ps.spacingProcess[cg-1][1]);
-		//riceBreeder.updateSpacingChart(ps.spacingProcess[cg-1][0], ps.radiationForAll[cg-1][0], ps.radiationForAll[cg-1][1]);
-		//println("run mid");
 	}
 }
 
 protected void renew(){
-	//println("renew");
 	derive();
 	reset();
 	updateSysPara();
-	//println("renew run");
 }
 
-//¸üĞÂÏµÍ³²ÎÊı
+//æ›´æ–°ç³»ç»Ÿå‚æ•°
 protected void updateSysPara()
 {
 	riceBreeder.year = ConstPara.YEAR;
@@ -231,7 +200,6 @@ protected void updateSysPara()
 	riceBreeder.day = ConstPara.DAY;
 	riceBreeder.hour = ConstPara.HOUR;
 	riceBreeder.breedTime = 1;
-	//riceBreeder.earFlag = true;
 }
 
 protected void copy() {
@@ -255,14 +223,10 @@ protected void copy(double[][] copy) {
 
 protected void PSO(int cg, int count, double area) {
 	for(int i = 0; i<5&&cg==0; i++) {
-		ps.totalRadiation[cg][i] = riceBreeder.getSum();//sum((* ind:Individual *).grainDM);//ÈºÌå²úÁ¿
+		ps.totalRadiation[cg][i] = riceBreeder.getSum();//sum((* ind:Individual *).grainDM);//ç¾¤ä½“äº§é‡
 	}
-	//for(int i = 0; i<5; i++){
-		ps.totalRadiation[cg][count] = riceBreeder.getSum();//sum((* ind:Individual *).grainDM);//ÈºÌå²úÁ¿
+		ps.totalRadiation[cg][count] = riceBreeder.getSum();//sum((* ind:Individual *).grainDM);//ç¾¤ä½“äº§é‡
 		ps.setFitness(cg, count, ps.totalRadiation[cg][count], area);
-		//println("cg:"+cg+" count:"+count+" total:"+ps.totalRadiation[cg][count]+" area:"+area);
-	//}
-	//println("total:"+ps.totalRadiation[cg][count]);//Ò»Ö±Îª0
 	if(cg == 0&&count==0){
 		ps.lessSoilRadiation = ps.soilRadiation[cg][0];
 		for(int i=0; i<ps.particle; i++){
@@ -281,42 +245,18 @@ protected void PSO(int cg, int count, double area) {
 		print(" fitness:"+format_4(ps.totalRadiation[cg][count]));
 		println(" rate:"+format_4(ps.lllessRate[cg][count]));
 	}
-	//ps.setFitness(cg, count, ps.totalRadiation[cg][count], area);
 	if(cg==0){
 		fit[cg][0] = ps.lllessRate[cg][0];
 		fit[cg][1] = (ps.lllessRate[cg][0]/area);
-		//updateFitnessChart(ps.lllessRate[cg][0], ps.lllessRate[cg][0]/area);
 	}else if(count==4) {
-		//ps.radiationForAll[cg][1] = ps.lllessRate[cg][0];
 		fit[cg][0] = ps.lllessRate[cg][0];
-		//ps.radiationForAll[cg][2] = ps.lllessRate[cg][0]/area;
 		fit[cg][1] = ps.lllessRate[cg][0]/area;
-		/*for(int i=1; i<5; i++){
-			if(ps.radiationForAll[cg][2]<(ps.lllessRate[cg][i]/area)){
-				ps.radiationForAll[cg][2]=(ps.lllessRate[cg][i]/area);
-				ps.radiationForAll[cg][1]=ps.lllessRate[cg][i];
-				//ps.fitness[cg][0] = ps.lllessRate[cg][i];
-				//ps.fitness[cg][1] = (ps.lllessRate[cg][i]/area);
-				fit[cg][0] = ps.lllessRate[cg][i];
-				fit[cg][1] = (ps.lllessRate[cg][i]/area);
-				//println("main:"+ps.fitness[cg][0]+"-"+ps.fitness[cg][1]);
-			}
-		}*/
-		//updateFitnessChart(ps.radiationForAll[cg][1], ps.radiationForAll[cg][2]);
-		//println("+++++++++++mid:"+main.fit[cg-1][0]+" cg:"+(cg-1));
 	}
-	//println("============1"+main.fit[cg][0]);
 	if(cg==0||count==4) {
 		riceBreeder.updateFitnessChart(ps.fitness[cg][0], ps.fitness[cg][1]);
 	}
-	//println("============start:"+main.fit[cg][0]+" cg:"+cg);
-	//main.copy(main.fit);
-	//copy();
-	//println("============mid:"+main.fit[cg][0]+" cg:"+cg);
-	//println("============mid2:"+main.duplicate[cg][0]+" cg:"+cg);
 	if(cg==ps.maxTime&&count==4) {
 		ps.write(fit);
-		//println("============start:"+duplicate);
 	}
 }
 
