@@ -24,135 +24,74 @@ protected void build(int year, int month, int day, int hour)
 	{ float[] sunResult = SunFunction.getSun(year, month, day, hour); }
 	
 	Axiom ==> 
-	//[Dummy] 
-	//[RL(90) Translate(0,0,-0.5) Ruler]  //lfxu110124
 	[
-		//PlantBase   //wy131124close
 		[                                                                                          
 			M(5)
 			RL(90) RU(90) // to get a convenient position
 			[ SunPoint(sunResult[0],sunResult[1],sunResult[2]) ]
-			/*
-			{  //Parameter.INSTANCE.initEnvironment();  //lfxu101203
-			  int dayOfYear = doy;
-			  int timeOfDay = ConstPara.HOUR;
-			  int latitude = (int)(ConstPara.observerLatitude);
-			  //module Tiankong(int doy, int time, float power)  //float[] calcPos(float latitude, int doy, int time)
-			}
-			Tiankong(dayOfYear, timeOfDay, Sun.INSTANCE.calcPos(latitude, dayOfYear, timeOfDay)[3])  //lfxu101203
-			*/
 			[ Tiankong(year, month, day, hour, sunResult[3]) ]
-			//[ RL(90) M(-10) SignalLight ]  [RL(90) M(6) RL(-90) M(-2) for((1:40)) (virtRuler M(0.05)) ]  //lfxu110124
 		]
-		//[ M(2.5) ln1.(setLight(new PointLight().(setPower(POW)))) ]  //lfxu101212 
-		//[RL(90) M(-5) Parallelogram(40,40).(setShader(soil))]
 	 	[RL(90) M(-12) Parallelogram(40,40).(setShader(soil))]
 	]
-	//Population Genotype	[Chromo Chromo];   //lfxu100525, remove the QTLs objects //wy131119 change to
-    Population;
-	//{
-		/*
-		for(int i=0; i<par.plantNumber; i++) { //lfxu100517, par.plantNumber //wy131119:par.newNumber-->par.plantNumber
-			Parameter.INSTANCE.Cpool[i] = 0.15*4;
-		}*/
-		//initCharts(); //wy131125close
-		//initCharts();  //lfxu100528, initialization of the charts  //lfxu101023, reuse //lfxu110124, comment
-		//printLog();		//lfxu100506
-	//}
 ]
 
 //wy131125
 protected void newGeneration ()
 {
 	for (apply (1)) reproduce(); //1.field configuration; 2.Population --> Germ //wy131119mark
-	//for (apply (1)) genotype();  //lfxu110211, for riceBreeder  //lfxu120712
 	for (apply (1)) germination(); //present plants:Germ-->Meristem  // wy131119mark
 }
 
 protected void newGenerationFinal ()
 {
 	for (apply (1)) reproduceFinal(); //1.field configuration; 2.Population --> Germ //wy131119mark
-	//for (apply (1)) genotype();  //lfxu110211, for riceBreeder  //lfxu120712
 	for (apply (1)) germination(); //present plants:Germ-->Meristem  // wy131119mark
 }
 
 protected void reproduce()
 [
-	//p:Population Genotype [Chromo Chromo] //Population Genotype //wy131119 change to
 	p:Population
 	==>> 
-	//{	int i = 0;
-		//int indivNum = par.nocols;  //lfxu110210 //wy131119close
-	//}
 	p //wy131202
 	{print("Spacing:"+ps.PSOspacing[ps.currentGeneration][ps.count][0]/*+", "+ps.PSOspacing[ps.currentGeneration][ps.count][0]*/+" ");}
-	for (int row=0; row<ConstPara.norows; row++) //行
+	for (int row=0; row<ConstPara.norows; row++) //脨脨
 	([
-		for (int col=0; col<ConstPara.nocols; col++)(  //列//lfxu110124 //wy131119:indivNum-->par.nocols
+		for (int col=0; col<ConstPara.nocols; col++)(  //脕脨//lfxu110124 //wy131119:indivNum-->par.nocols
 			[
-			//Translate(ConstPara.spacing*row, ConstPara.spacing*col,0)
 			Translate(ps.PSOspacing[ps.currentGeneration][ps.count][0]*row/100, ps.PSOspacing[ps.currentGeneration][ps.count][0]*col/100,0)
-			//p //wy131202
-			//{print(" "+ps.PSOspacing[ps.currentGeneration][ps.count][0]);}
 			ger:Germ 
 			{	ger[ID] = ConstPara.nocols*(row)+col+1; }
-			//[-par.GEN_EDGE-> Genotype [Chromo Chromo]] //wy131119 close
 			]
 		 )
-		 //{println();}
-		 //{println("area:"+ps.getArea());}
 	]);
 ]
 
 protected void reproduceFinal()
 [
-	//p:Population Genotype [Chromo Chromo] //Population Genotype //wy131119 change to
 	p:Population
 	==>> 
-	//{	int i = 0;
-		//int indivNum = par.nocols;  //lfxu110210 //wy131119close
-	//}
 	p //wy131202
-	for (int row=0; row<ConstPara.norows; row++) //行
+	for (int row=0; row<ConstPara.norows; row++) //脨脨
 	([
-		for (int col=0; col<ConstPara.nocols; col++)(  //列//lfxu110124 //wy131119:indivNum-->par.nocols
+		for (int col=0; col<ConstPara.nocols; col++)(  //脕脨//lfxu110124 //wy131119:indivNum-->par.nocols
 			[
-			//Translate(ConstPara.spacing*row, ConstPara.spacing*col,0)
 			Translate(ps.PSOgBestspacing[0]*row/100, ps.PSOgBestspacing[0]*col/100,0)
-			//p //wy131202
-			//{print(" "+ps.PSOspacing[ps.currentGeneration][ps.count][0]);}
 			ger:Germ 
 			{	ger[ID] = ConstPara.nocols*(row)+col+1; }
-			//[-par.GEN_EDGE-> Genotype [Chromo Chromo]] //wy131119 close
 			]
 		 )
-		 //{println();}
-		 //{println("area:"+ps.getArea());}
 	]);
 ]
 
 protected void germination()
 [
-	//ger:Germ (* -par.GEN_EDGE-> g:Genotype [ch1:Chromo ch2:Chromo] *) //wy131119 change to
 	ger:Germ //(* -ancestor-> pop:Population *)
 	==>
-	//{println("g"+ ger[ID]);}
-	//Individual.(setCaption("Plant " + ger[ID]), setFilled(true))
-	//[GroundFloor(ger[ID])]
-	//ind:Individual.(setCaption(ger[ID]+Parameter.INSTANCE.whichIndividuals), setFilled(true)) //wy131125change to 
-	//Sphere(0.05)
 	ind:Individual.(setCaption(ger[ID]), setFilled(true))
 	{
-		//println("here");
 		ind.setID(ger[ID]);//lfxu110214
-		//ind.Cpool = 0.15*4;//wy131124
-		//ind.veg = Vegetative.INSTANCE;
-		//println("i" + ind[ID]);
 	} 
-	//pl:PlantBase
-	//{pl.setID(ger[ID]);}
 	[ 
-		//{ double RH_ANGLE = Math.random()*360 + 90; } //wy131203
 		{ double RH_ANGLE = 90; }
 		RH(RH_ANGLE) 
 		mer:Meristem(tsr0(1), 1, 1, 0, false)  {mer.setID(ger[ID]); mer.angle=0;} 
