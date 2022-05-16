@@ -32,7 +32,7 @@ protected void build(int year, int month, int day, int hour)
 			[ Tiankong(year, month, day, hour, sunResult[3]) ]
 		]
 	 	[RL(90) M(-12) Parallelogram(40,40).(setShader(soil))]
-	]
+	];
 ]
 
 //wy131125
